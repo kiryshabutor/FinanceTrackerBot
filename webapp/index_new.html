@@ -1,0 +1,1205 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Financial Tracker</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #1a5f3f;
+            color: white;
+            overflow-x: hidden;
+        }
+
+        .app-container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 280px;
+            background: #1a5f3f;
+            padding: 20px;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            z-index: 1000;
+            transition: transform 0.3s;
+        }
+
+        .sidebar.hidden {
+            transform: translateX(-100%);
+        }
+
+        .sidebar-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .sidebar-header .avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 15px;
+            font-size: 24px;
+        }
+
+        .sidebar-header .user-info h3 {
+            font-size: 18px;
+            margin-bottom: 5px;
+        }
+
+        .sidebar-header .user-info p {
+            font-size: 14px;
+            opacity: 0.8;
+        }
+
+        .sidebar-menu {
+            list-style: none;
+        }
+
+        .sidebar-menu li {
+            margin-bottom: 10px;
+        }
+
+        .sidebar-menu a {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            color: white;
+            text-decoration: none;
+            border-radius: 10px;
+            transition: background 0.3s;
+        }
+
+        .sidebar-menu a:hover,
+        .sidebar-menu a.active {
+            background: rgba(255,255,255,0.1);
+        }
+
+        .sidebar-menu a .icon {
+            width: 24px;
+            height: 24px;
+            margin-right: 15px;
+            font-size: 20px;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            margin-left: 280px;
+            background: #1a5f3f;
+            min-height: 100vh;
+        }
+
+        .top-bar {
+            background: #1a5f3f;
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .menu-toggle {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 5px;
+        }
+
+        .balance-header {
+            text-align: center;
+            flex: 1;
+        }
+
+        .balance-header .total {
+            font-size: 32px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .balance-header .label {
+            font-size: 14px;
+            opacity: 0.8;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            border-bottom: 2px solid rgba(255,255,255,0.2);
+        }
+
+        .tab {
+            padding: 10px 20px;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+            transition: border-color 0.3s;
+        }
+
+        .tab.active {
+            border-bottom-color: #4CAF50;
+        }
+
+        /* Period Selector */
+        .period-selector {
+            background: rgba(0,0,0,0.2);
+            padding: 15px 20px;
+            margin: 20px;
+            border-radius: 10px;
+        }
+
+        .period-tabs {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .period-tab {
+            padding: 8px 15px;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+
+        .period-tab.active {
+            background: #4CAF50;
+        }
+
+        .date-range {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 10px;
+        }
+
+        .date-nav {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 5px 10px;
+        }
+
+        .date-display {
+            font-size: 16px;
+        }
+
+        /* Content Area */
+        .content-area {
+            padding: 20px;
+        }
+
+        .card {
+            background: rgba(0,0,0,0.2);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .card h2 {
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        .summary-card {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .summary-value {
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .add-button {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: #FFC107;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+
+        .category-list {
+            list-style: none;
+        }
+
+        .category-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 15px;
+            margin-bottom: 10px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+        }
+
+        .category-item .icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(76, 175, 80, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 15px;
+            font-size: 20px;
+        }
+
+        .category-info {
+            flex: 1;
+        }
+
+        .category-name {
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .category-percent {
+            font-size: 14px;
+            opacity: 0.8;
+        }
+
+        .category-amount {
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .transaction-list {
+            list-style: none;
+        }
+
+        .transaction-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 15px;
+            margin-bottom: 10px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .transaction-item:hover {
+            background: rgba(255,255,255,0.1);
+        }
+
+        .transaction-info {
+            flex: 1;
+        }
+
+        .transaction-category {
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .transaction-date {
+            font-size: 12px;
+            opacity: 0.7;
+        }
+
+        .transaction-amount {
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .transaction-amount.expense {
+            color: #f44336;
+        }
+
+        .transaction-amount.income {
+            color: #4CAF50;
+        }
+
+        .transaction-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .action-btn {
+            padding: 8px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .edit-btn {
+            background: #2196F3;
+            color: white;
+        }
+
+        .delete-btn {
+            background: #f44336;
+            color: white;
+        }
+
+        /* Forms */
+        .form-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+
+        .form-overlay.hidden {
+            display: none;
+        }
+
+        .form-card {
+            background: #1a5f3f;
+            border-radius: 15px;
+            padding: 25px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            font-size: 16px;
+        }
+
+        .form-group input::placeholder {
+            color: rgba(255,255,255,0.5);
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .btn-primary {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .btn-secondary {
+            background: rgba(255,255,255,0.2);
+            color: white;
+        }
+
+        /* Charts */
+        .chart-container {
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        /* Hidden class */
+        .hidden {
+            display: none !important;
+        }
+
+        /* Mobile responsive */
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+
+            .sidebar.open {
+                transform: translateX(0);
+            }
+
+            .main-content {
+                margin-left: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="avatar">💰</div>
+                <div class="user-info">
+                    <h3 id="user-name">Пользователь</h3>
+                    <p>Остаток: <span id="sidebar-balance">0</span> ₽</p>
+                </div>
+            </div>
+            <ul class="sidebar-menu">
+                <li><a href="#" class="menu-item active" data-view="home"><span class="icon">🏠</span> Главная</a></li>
+                <li><a href="#" class="menu-item" data-view="accounts"><span class="icon">💳</span> Счета</a></li>
+                <li><a href="#" class="menu-item" data-view="categories"><span class="icon">📁</span> Категории</a></li>
+                <li><a href="#" class="menu-item" data-view="charts"><span class="icon">📊</span> Графики</a></li>
+            </ul>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <div class="top-bar">
+                <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+                <div class="balance-header">
+                    <div class="total" id="total-balance">0 ₽</div>
+                    <div class="label">Итого</div>
+                </div>
+                <div style="width: 40px;"></div>
+            </div>
+
+            <div class="tabs">
+                <button class="tab active" onclick="switchTab('expense')">РАСХОДЫ</button>
+                <button class="tab" onclick="switchTab('income')">ДОХОДЫ</button>
+            </div>
+
+            <!-- Period Selector -->
+            <div class="period-selector">
+                <div class="period-tabs">
+                    <button class="period-tab active" onclick="selectPeriod('today')">День</button>
+                    <button class="period-tab" onclick="selectPeriod('week')">Неделя</button>
+                    <button class="period-tab" onclick="selectPeriod('month')">Месяц</button>
+                    <button class="period-tab" onclick="selectPeriod('year')">Год</button>
+                    <button class="period-tab" onclick="selectPeriod('period')">Период</button>
+                </div>
+                <div class="date-range">
+                    <button class="date-nav" onclick="changeDateRange(-1)">←</button>
+                    <div class="date-display" id="date-range">17 нояб. - 23 нояб.</div>
+                    <button class="date-nav" onclick="changeDateRange(1)">→</button>
+                </div>
+            </div>
+
+            <!-- Content Views -->
+            <div class="content-area">
+                <!-- Home View -->
+                <div id="home-view" class="view">
+                    <div class="card">
+                        <div class="summary-card">
+                            <div>
+                                <div style="font-size: 14px; opacity: 0.8; margin-bottom: 5px;">Сумма <span id="current-tab-label">расходов</span></div>
+                                <div class="summary-value" id="summary-amount">0 ₽</div>
+                            </div>
+                            <button class="add-button" onclick="showAddForm()">+</button>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <h2>По категориям</h2>
+                        <ul class="category-list" id="category-list"></ul>
+                    </div>
+
+                    <div class="card">
+                        <h2>Операции</h2>
+                        <ul class="transaction-list" id="transaction-list"></ul>
+                    </div>
+                </div>
+
+                <!-- Accounts View -->
+                <div id="accounts-view" class="view hidden">
+                    <div class="card">
+                        <h2>Счета</h2>
+                        <button class="btn btn-primary" onclick="showCreateAccountForm()" style="width: 100%; margin-bottom: 20px;">➕ Добавить счёт</button>
+                        <ul class="transaction-list" id="accounts-list"></ul>
+                    </div>
+                </div>
+
+                <!-- Categories View -->
+                <div id="categories-view" class="view hidden">
+                    <div class="card">
+                        <h2>Категории</h2>
+                        <div class="form-group">
+                            <select id="category-type-filter" onchange="loadCategoriesForManage()">
+                                <option value="expense">Расходы</option>
+                                <option value="income">Доходы</option>
+                            </select>
+                        </div>
+                        <ul class="transaction-list" id="categories-list"></ul>
+                    </div>
+                </div>
+
+                <!-- Charts View -->
+                <div id="charts-view" class="view hidden">
+                    <div class="card">
+                        <h2>Статистика</h2>
+                        <div class="chart-container">
+                            <canvas id="category-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add/Edit Transaction Form -->
+    <div class="form-overlay hidden" id="transaction-form-overlay">
+        <div class="form-card">
+            <h2 id="form-title">Добавить операцию</h2>
+            <div class="form-group">
+                <label>Сумма</label>
+                <input type="text" id="form-amount" placeholder="1000.00">
+            </div>
+            <div class="form-group">
+                <label>Категория</label>
+                <select id="form-category"></select>
+                <button class="btn btn-secondary" onclick="showCreateCategoryForm()" style="width: 100%; margin-top: 10px;">➕ Создать категорию</button>
+            </div>
+            <div class="form-group">
+                <label>Счёт</label>
+                <select id="form-account"></select>
+            </div>
+            <div class="form-group">
+                <label>Описание</label>
+                <input type="text" id="form-description" placeholder="Необязательно">
+            </div>
+            <div class="form-group">
+                <label>Дата</label>
+                <input type="date" id="form-date">
+            </div>
+            <div class="form-actions">
+                <button class="btn btn-secondary" onclick="hideTransactionForm()">Отмена</button>
+                <button class="btn btn-primary" onclick="submitTransaction()">Сохранить</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Account Form -->
+    <div class="form-overlay hidden" id="account-form-overlay">
+        <div class="form-card">
+            <h2>Создать счёт</h2>
+            <div class="form-group">
+                <label>Название</label>
+                <input type="text" id="account-name-input" placeholder="Название счёта">
+            </div>
+            <div class="form-group">
+                <label>Валюта</label>
+                <select id="account-currency-input">
+                    <option value="RUB">RUB</option>
+                    <option value="USD">USD</option>
+                    <option value="EUR">EUR</option>
+                </select>
+            </div>
+            <div class="form-actions">
+                <button class="btn btn-secondary" onclick="hideAccountForm()">Отмена</button>
+                <button class="btn btn-primary" onclick="submitCreateAccount()">Создать</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Category Form -->
+    <div class="form-overlay hidden" id="category-form-overlay">
+        <div class="form-card">
+            <h2>Создать категорию</h2>
+            <div class="form-group">
+                <label>Название</label>
+                <input type="text" id="category-name-input" placeholder="Название категории">
+            </div>
+            <div class="form-group">
+                <label>Тип</label>
+                <select id="category-type-input">
+                    <option value="expense">Расход</option>
+                    <option value="income">Доход</option>
+                </select>
+            </div>
+            <div class="form-actions">
+                <button class="btn btn-secondary" onclick="hideCategoryForm()">Отмена</button>
+                <button class="btn btn-primary" onclick="submitCreateCategory()">Создать</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.ready();
+        tg.expand();
+
+        const telegramId = tg.initDataUnsafe.user.id;
+        const gatewayUrl = window.location.origin.replace('/webapp', '');
+
+        let currentView = 'home';
+        let currentTab = 'expense';
+        let currentPeriod = 'week';
+        let editingTransactionId = null;
+        let categoryChart = null;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            loadData();
+            setupMenu();
+            document.getElementById('form-date').valueAsDate = new Date();
+        });
+
+        function setupMenu() {
+            document.querySelectorAll('.menu-item').forEach(item => {
+                item.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const view = item.dataset.view;
+                    switchView(view);
+                });
+            });
+        }
+
+        function switchView(view) {
+            currentView = view;
+            document.querySelectorAll('.view').forEach(v => v.classList.add('hidden'));
+            document.getElementById(`${view}-view`).classList.remove('hidden');
+            document.querySelectorAll('.menu-item').forEach(item => {
+                item.classList.remove('active');
+                if (item.dataset.view === view) {
+                    item.classList.add('active');
+                }
+            });
+
+            if (view === 'charts') {
+                loadCharts();
+            } else if (view === 'accounts') {
+                loadAccountsForManage();
+            } else if (view === 'categories') {
+                loadCategoriesForManage();
+            }
+        }
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('open');
+        }
+
+        function switchTab(tab) {
+            currentTab = tab;
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+            document.getElementById('current-tab-label').textContent = tab === 'expense' ? 'расходов' : 'доходов';
+            loadData();
+        }
+
+        function selectPeriod(period) {
+            currentPeriod = period;
+            document.querySelectorAll('.period-tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+            loadData();
+        }
+
+        function changeDateRange(direction) {
+            // TODO: Implement date range navigation
+            loadData();
+        }
+
+        async function loadData() {
+            try {
+                await Promise.all([
+                    loadBalance(),
+                    loadAccounts(),
+                    loadCategories(currentTab),
+                    loadTransactions(),
+                    loadSummary()
+                ]);
+            } catch (error) {
+                tg.showAlert('Ошибка загрузки данных');
+            }
+        }
+
+        async function loadBalance() {
+            const response = await fetch(`${gatewayUrl}/api/balance?telegram_id=${telegramId}`);
+            const data = await response.json();
+            const total = data.accounts.reduce((sum, acc) => sum + parseFloat(acc.balance), 0);
+            document.getElementById('total-balance').textContent = `${total.toFixed(2)} ₽`;
+            document.getElementById('sidebar-balance').textContent = total.toFixed(2);
+        }
+
+        async function loadAccounts() {
+            const response = await fetch(`${gatewayUrl}/api/accounts?telegram_id=${telegramId}`);
+            const data = await response.json();
+            const accounts = data.accounts;
+            
+            ['form-account'].forEach(id => {
+                const select = document.getElementById(id);
+                if (select) {
+                    select.innerHTML = accounts.map(acc => 
+                        `<option value="${acc.id}">${acc.name} (${acc.balance} ${acc.currency})</option>`
+                    ).join('');
+                }
+            });
+        }
+
+        async function loadCategories(type) {
+            const response = await fetch(`${gatewayUrl}/api/categories?telegram_id=${telegramId}&type=${type}`);
+            const data = await response.json();
+            const select = document.getElementById('form-category');
+            if (select) {
+                select.innerHTML = data.categories.map(cat => 
+                    `<option value="${cat.id}">${cat.name}</option>`
+                ).join('');
+            }
+        }
+
+        async function loadTransactions() {
+            const response = await fetch(`${gatewayUrl}/api/transactions?telegram_id=${telegramId}&period=${currentPeriod}&limit=100`);
+            const data = await response.json();
+            const container = document.getElementById('transaction-list');
+            
+            if (!container) return;
+
+            const filtered = data.transactions.filter(tx => tx.type === currentTab);
+            
+            if (filtered.length === 0) {
+                container.innerHTML = '<li style="text-align: center; padding: 20px; opacity: 0.7;">Нет операций</li>';
+                return;
+            }
+
+            container.innerHTML = filtered.map(tx => {
+                const className = tx.type === 'expense' ? 'expense' : 'income';
+                const date = new Date(tx.operation_date).toLocaleDateString('ru-RU');
+                return `
+                    <li class="transaction-item">
+                        <div class="transaction-info">
+                            <div class="transaction-category">${tx.category_name || 'Без категории'}</div>
+                            <div class="transaction-date">${date}</div>
+                        </div>
+                        <div class="transaction-amount ${className}">${tx.type === 'expense' ? '-' : '+'}${tx.amount} ${tx.currency}</div>
+                        <div class="transaction-actions">
+                            <button class="action-btn edit-btn" onclick="editTransaction(${tx.id})">✏️</button>
+                            <button class="action-btn delete-btn" onclick="deleteTransaction(${tx.id})">🗑️</button>
+                        </div>
+                    </li>
+                `;
+            }).join('');
+        }
+
+        async function loadSummary() {
+            try {
+                const response = await fetch(`${gatewayUrl}/api/stats/by-category?telegram_id=${telegramId}&period=${currentPeriod}`);
+                const data = await response.json();
+                
+                const total = data.categories.reduce((sum, cat) => sum + parseFloat(cat.total_expense || 0), 0);
+                document.getElementById('summary-amount').textContent = `${total.toFixed(2)} ₽`;
+
+                // Load category list
+                const categoryList = document.getElementById('category-list');
+                if (categoryList) {
+                    const filtered = data.categories.filter(cat => {
+                        // Filter by current tab
+                        return true; // TODO: filter by expense/income
+                    });
+
+                    if (filtered.length === 0) {
+                        categoryList.innerHTML = '<li style="text-align: center; padding: 20px; opacity: 0.7;">Нет данных</li>';
+                        return;
+                    }
+
+                    categoryList.innerHTML = filtered.map(cat => {
+                        const percent = total > 0 ? ((parseFloat(cat.total_expense || 0) / total) * 100).toFixed(0) : 0;
+                        return `
+                            <li class="category-item">
+                                <div class="icon">📁</div>
+                                <div class="category-info">
+                                    <div class="category-name">${cat.name}</div>
+                                    <div class="category-percent">${percent}%</div>
+                                </div>
+                                <div class="category-amount">${parseFloat(cat.total_expense || 0).toFixed(2)} ₽</div>
+                            </li>
+                        `;
+                    }).join('');
+                }
+            } catch (error) {
+                console.error('Error loading summary:', error);
+            }
+        }
+
+        function showAddForm() {
+            editingTransactionId = null;
+            document.getElementById('form-title').textContent = `Добавить ${currentTab === 'expense' ? 'расход' : 'доход'}`;
+            document.getElementById('transaction-form-overlay').classList.remove('hidden');
+            loadCategories(currentTab);
+        }
+
+        function hideTransactionForm() {
+            document.getElementById('transaction-form-overlay').classList.add('hidden');
+            editingTransactionId = null;
+        }
+
+        async function submitTransaction() {
+            const amount = document.getElementById('form-amount').value;
+            const categoryId = document.getElementById('form-category').value;
+            const accountId = document.getElementById('form-account').value;
+            const description = document.getElementById('form-description').value;
+            const date = document.getElementById('form-date').value;
+
+            if (!amount || !categoryId || !accountId) {
+                tg.showAlert('Заполните все обязательные поля');
+                return;
+            }
+
+            try {
+                const endpoint = editingTransactionId 
+                    ? `${gatewayUrl}/api/transactions/${editingTransactionId}`
+                    : `${gatewayUrl}/api/transactions/${currentTab}`;
+                
+                const method = editingTransactionId ? 'PUT' : 'POST';
+                
+                const body = editingTransactionId ? {
+                    telegram_id: telegramId,
+                    account_id: parseInt(accountId),
+                    amount: amount,
+                    category_id: parseInt(categoryId),
+                    description: description,
+                    operation_date: date ? new Date(date).toISOString() : new Date().toISOString()
+                } : {
+                    telegram_id: telegramId,
+                    account_id: parseInt(accountId),
+                    amount: amount,
+                    category_id: parseInt(categoryId),
+                    description: description
+                };
+
+                const response = await fetch(endpoint, {
+                    method: method,
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(body)
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    tg.showAlert(editingTransactionId ? 'Операция обновлена!' : 'Операция добавлена!');
+                    hideTransactionForm();
+                    loadData();
+                } else {
+                    tg.showAlert(data.error || 'Ошибка');
+                }
+            } catch (error) {
+                tg.showAlert('Ошибка при сохранении');
+            }
+        }
+
+        async function editTransaction(id) {
+            // Load transaction data and show form
+            editingTransactionId = id;
+            document.getElementById('form-title').textContent = 'Редактировать операцию';
+            document.getElementById('transaction-form-overlay').classList.remove('hidden');
+            // TODO: Load transaction data into form
+        }
+
+        async function deleteTransaction(id) {
+            if (!confirm('Удалить эту операцию?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${gatewayUrl}/api/transactions/${id}?telegram_id=${telegramId}`, {
+                    method: 'DELETE'
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    tg.showAlert('Операция удалена!');
+                    loadData();
+                } else {
+                    tg.showAlert(data.error || 'Ошибка при удалении');
+                }
+            } catch (error) {
+                tg.showAlert('Ошибка при удалении');
+            }
+        }
+
+        async function loadAccountsForManage() {
+            const response = await fetch(`${gatewayUrl}/api/accounts?telegram_id=${telegramId}`);
+            const data = await response.json();
+            const container = document.getElementById('accounts-list');
+            
+            if (!container) return;
+
+            if (data.accounts.length === 0) {
+                container.innerHTML = '<li style="text-align: center; padding: 20px; opacity: 0.7;">Нет счетов</li>';
+                return;
+            }
+
+            container.innerHTML = data.accounts.map(acc => `
+                <li class="transaction-item">
+                    <div class="transaction-info">
+                        <div class="transaction-category">${acc.name}</div>
+                        <div class="transaction-date">${acc.balance} ${acc.currency}</div>
+                    </div>
+                    <button class="action-btn delete-btn" onclick="deleteAccount(${acc.id})">🗑️</button>
+                </li>
+            `).join('');
+        }
+
+        async function showCreateAccountForm() {
+            document.getElementById('account-form-overlay').classList.remove('hidden');
+        }
+
+        function hideAccountForm() {
+            document.getElementById('account-form-overlay').classList.add('hidden');
+        }
+
+        async function submitCreateAccount() {
+            const name = document.getElementById('account-name-input').value;
+            const currency = document.getElementById('account-currency-input').value;
+
+            if (!name) {
+                tg.showAlert('Введите название счёта');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${gatewayUrl}/api/accounts`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        telegram_id: telegramId,
+                        name: name,
+                        currency: currency
+                    })
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    tg.showAlert('Счёт создан!');
+                    hideAccountForm();
+                    loadAccountsForManage();
+                    loadData();
+                } else {
+                    tg.showAlert(data.error || 'Ошибка при создании счёта');
+                }
+            } catch (error) {
+                tg.showAlert('Ошибка при создании счёта');
+            }
+        }
+
+        async function deleteAccount(id) {
+            if (!confirm('Удалить этот счёт? Баланс должен быть равен нулю.')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${gatewayUrl}/api/accounts/${id}?telegram_id=${telegramId}`, {
+                    method: 'DELETE'
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    tg.showAlert('Счёт удалён!');
+                    loadAccountsForManage();
+                    loadData();
+                } else {
+                    tg.showAlert(data.error || 'Ошибка при удалении счёта');
+                }
+            } catch (error) {
+                tg.showAlert('Ошибка при удалении счёта');
+            }
+        }
+
+        async function loadCategoriesForManage() {
+            const type = document.getElementById('category-type-filter').value;
+            
+            try {
+                const response = await fetch(`${gatewayUrl}/api/categories?telegram_id=${telegramId}&type=${type}`);
+                const data = await response.json();
+                const container = document.getElementById('categories-list');
+                
+                if (!container) return;
+
+                const userCategories = data.categories; // TODO: filter system categories
+
+                if (userCategories.length === 0) {
+                    container.innerHTML = '<li style="text-align: center; padding: 20px; opacity: 0.7;">Нет категорий</li>';
+                    return;
+                }
+
+                container.innerHTML = userCategories.map(cat => `
+                    <li class="transaction-item">
+                        <div class="transaction-info">
+                            <div class="transaction-category">${cat.name}</div>
+                        </div>
+                        <button class="action-btn delete-btn" onclick="deleteCategory(${cat.id}, '${type}')">🗑️</button>
+                    </li>
+                `).join('');
+            } catch (error) {
+                tg.showAlert('Ошибка загрузки категорий');
+            }
+        }
+
+        function showCreateCategoryForm() {
+            const type = currentTab || 'expense';
+            document.getElementById('category-type-input').value = type;
+            document.getElementById('category-form-overlay').classList.remove('hidden');
+        }
+
+        function hideCategoryForm() {
+            document.getElementById('category-form-overlay').classList.add('hidden');
+        }
+
+        async function submitCreateCategory() {
+            const name = document.getElementById('category-name-input').value;
+            const type = document.getElementById('category-type-input').value;
+
+            if (!name) {
+                tg.showAlert('Введите название категории');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${gatewayUrl}/api/categories`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        telegram_id: telegramId,
+                        name: name,
+                        type: type
+                    })
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    tg.showAlert('Категория создана!');
+                    document.getElementById('category-name-input').value = '';
+                    hideCategoryForm();
+                    await loadCategories(type);
+                    if (currentView === 'categories') {
+                        loadCategoriesForManage();
+                    }
+                } else {
+                    tg.showAlert(data.error || 'Ошибка при создании категории');
+                }
+            } catch (error) {
+                tg.showAlert('Ошибка при создании категории');
+            }
+        }
+
+        async function deleteCategory(id, type) {
+            if (!confirm('Удалить эту категорию? Все транзакции будут перенесены в категорию "Прочее".')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${gatewayUrl}/api/categories/${id}?telegram_id=${telegramId}`, {
+                    method: 'DELETE'
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    tg.showAlert('Категория удалена!');
+                    loadCategoriesForManage();
+                    await loadCategories(type);
+                } else {
+                    tg.showAlert(data.error || 'Ошибка при удалении категории');
+                }
+            } catch (error) {
+                tg.showAlert('Ошибка при удалении категории');
+            }
+        }
+
+        async function loadCharts() {
+            try {
+                const response = await fetch(`${gatewayUrl}/api/stats/by-category?telegram_id=${telegramId}&period=${currentPeriod}`);
+                const data = await response.json();
+                
+                const ctx = document.getElementById('category-chart').getContext('2d');
+                
+                if (categoryChart) {
+                    categoryChart.destroy();
+                }
+
+                categoryChart = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: data.categories.map(cat => cat.name),
+                        datasets: [{
+                            data: data.categories.map(cat => parseFloat(cat.total_expense || 0)),
+                            backgroundColor: [
+                                '#4CAF50',
+                                '#2196F3',
+                                '#FF9800',
+                                '#9C27B0',
+                                '#F44336',
+                                '#00BCD4',
+                                '#FFC107'
+                            ]
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: {
+                                    color: 'white'
+                                }
+                            }
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error('Error loading charts:', error);
+            }
+        }
+    </script>
+</body>
+</html>
+
+
+
+

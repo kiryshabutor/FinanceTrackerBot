@@ -1,0 +1,201 @@
+syntax = "proto3";
+
+package ledger;
+
+option go_package = "github.com/kiribu/financial-tracker/proto/ledger";
+
+// Ledger Service
+service LedgerService {
+  rpc CreateExpense(CreateExpenseRequest) returns (TransactionResponse);
+  rpc CreateIncome(CreateIncomeRequest) returns (TransactionResponse);
+  rpc CreateTransfer(CreateTransferRequest) returns (TransferResponse);
+  rpc ListAccounts(ListAccountsRequest) returns (ListAccountsResponse);
+  rpc CreateAccount(CreateAccountRequest) returns (AccountResponse);
+  rpc UpdateAccount(UpdateAccountRequest) returns (AccountResponse);
+  rpc DeleteAccount(DeleteAccountRequest) returns (DeleteAccountResponse);
+  rpc ListCategories(ListCategoriesRequest) returns (ListCategoriesResponse);
+  rpc CreateCategory(CreateCategoryRequest) returns (CategoryResponse);
+  rpc DeleteCategory(DeleteCategoryRequest) returns (DeleteCategoryResponse);
+  rpc ListTransactions(ListTransactionsRequest) returns (ListTransactionsResponse);
+  rpc UpdateTransaction(UpdateTransactionRequest) returns (TransactionResponse);
+  rpc DeleteTransaction(DeleteTransactionRequest) returns (DeleteTransactionResponse);
+  rpc GetBalance(GetBalanceRequest) returns (GetBalanceResponse);
+}
+
+message CreateExpenseRequest {
+  int64 user_id = 1;
+  int64 account_id = 2;
+  string amount = 3;
+  int64 category_id = 4;
+  string description = 5;
+  string operation_date = 6;
+}
+
+message CreateIncomeRequest {
+  int64 user_id = 1;
+  int64 account_id = 2;
+  string amount = 3;
+  int64 category_id = 4;
+  string description = 5;
+  string operation_date = 6;
+}
+
+message CreateTransferRequest {
+  int64 user_id = 1;
+  int64 from_account_id = 2;
+  int64 to_account_id = 3;
+  string amount = 4;
+  string description = 5;
+  string operation_date = 6;
+}
+
+message ListAccountsRequest {
+  int64 user_id = 1;
+}
+
+message CreateAccountRequest {
+  int64 user_id = 1;
+  string name = 2;
+  string currency = 3;
+  string balance = 4; // Optional initial balance
+}
+
+message UpdateAccountRequest {
+  int64 user_id = 1;
+  int64 account_id = 2;
+  string name = 3;
+  string balance = 4;
+}
+
+message DeleteAccountRequest {
+  int64 user_id = 1;
+  int64 account_id = 2;
+}
+
+message ListCategoriesRequest {
+  int64 user_id = 1;
+  string type = 2; // "expense" or "income"
+}
+
+message CreateCategoryRequest {
+  int64 user_id = 1;
+  string name = 2;
+  string type = 3; // "expense" or "income"
+}
+
+message DeleteCategoryRequest {
+  int64 user_id = 1;
+  int64 category_id = 2;
+}
+
+message ListTransactionsRequest {
+  int64 user_id = 1;
+  string period = 2; // "today", "week", "month", "year", "all"
+  int32 limit = 3;
+  string start_date = 4; // для периода "period"
+  string end_date = 5;   // для периода "period"
+}
+
+message UpdateTransactionRequest {
+  int64 user_id = 1;
+  int64 transaction_id = 2;
+  int64 account_id = 3;
+  string amount = 4;
+  int64 category_id = 5;
+  string description = 6;
+  string operation_date = 7;
+  int64 related_account_id = 8; // Для переводов
+}
+
+message DeleteTransactionRequest {
+  int64 user_id = 1;
+  int64 transaction_id = 2;
+}
+
+message GetBalanceRequest {
+  int64 user_id = 1;
+}
+
+message TransactionResponse {
+  int64 transaction_id = 1;
+  string account_balance = 2;
+  string status = 3;
+}
+
+message TransferResponse {
+  int64 transaction_id = 1;
+  string from_account_balance = 2;
+  string to_account_balance = 3;
+  string status = 4;
+}
+
+message Account {
+  int64 id = 1;
+  string name = 2;
+  string currency = 3;
+  string balance = 4;
+  bool is_archived = 5;
+  bool is_default = 6;
+}
+
+message Category {
+  int64 id = 1;
+  string name = 2;
+  string type = 3;
+}
+
+message Transaction {
+  int64 id = 1;
+  string type = 2;
+  string amount = 3;
+  string currency = 4;
+  string category_name = 5;
+  string account_name = 6;
+  string operation_date = 7;
+  string description = 8;
+  int64 account_id = 9;
+  int64 related_account_id = 10; // Для переводов
+  int64 category_id = 11;
+}
+
+message ListAccountsResponse {
+  repeated Account accounts = 1;
+}
+
+message ListCategoriesResponse {
+  repeated Category categories = 1;
+}
+
+message CategoryResponse {
+  int64 category_id = 1;
+  string name = 2;
+  string type = 3;
+}
+
+message AccountResponse {
+  int64 account_id = 1;
+  string name = 2;
+  string currency = 3;
+  string balance = 4;
+}
+
+message DeleteAccountResponse {
+  string status = 1;
+}
+
+message DeleteCategoryResponse {
+  string status = 1;
+}
+
+message DeleteTransactionResponse {
+  string status = 1;
+}
+
+message ListTransactionsResponse {
+  repeated Transaction transactions = 1;
+}
+
+message GetBalanceResponse {
+  repeated Account accounts = 1;
+}
+
