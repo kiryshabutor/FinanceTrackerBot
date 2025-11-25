@@ -368,10 +368,6 @@ function setupEventListeners() {
 
     document.getElementById('deleteTransactionBtn').addEventListener('click', handleDeleteTransaction);
     document.getElementById('deleteAccountBtn').addEventListener('click', handleDeleteAccount);
-    document.getElementById('moreCategoriesBtn').addEventListener('click', () => {
-        loadAllCategories();
-        openModal('moreCategoriesModal');
-    });
     document.getElementById('addCategoryBtn').addEventListener('click', () => {
         const form = document.getElementById('addCategoryForm');
         form.reset();
@@ -587,12 +583,12 @@ async function loadCategories(type) {
         grid.innerHTML = displayCategories.map(cat => `
             <button type="button" class="category-button" data-category-id="${cat.id}" onclick="selectCategory(${cat.id})">
                 <div class="icon">📁</div>
-                <div>${cat.name}</div>
+                <div class="category-name">${cat.name}</div>
             </button>
         `).join('') + `
-            <button type="button" class="category-button" onclick="document.getElementById('moreCategoriesBtn').click()">
+            <button type="button" class="category-button" onclick="loadAllCategories(); openModal('moreCategoriesModal');">
                 <div class="icon">➕</div>
-                <div>Еще</div>
+                <div class="category-name">Еще</div>
             </button>
         `;
     } catch (error) {
@@ -606,7 +602,7 @@ async function loadAllCategories() {
         grid.innerHTML = categories.map(cat => `
             <button type="button" class="category-button" data-category-id="${cat.id}" onclick="selectCategoryFromAll(${cat.id})">
                 <div class="icon">📁</div>
-                <div>${cat.name}</div>
+                <div class="category-name">${cat.name}</div>
             </button>
         `).join('');
     } catch (error) {
@@ -1127,18 +1123,25 @@ async function loadTransferHistory() {
         if (transfers.length === 0) {
             list.innerHTML = '<li class="empty-state"><div class="empty-state-icon">💸</div><div>Нет переводов</div></li>';
         } else {
-            list.innerHTML = transfers.map(tx => `
-                <li class="transaction-item" onclick="openTransferEdit(${tx.id})">
-                    <div class="transaction-header">
-                        <span class="transaction-category">${tx.description || 'Перевод'}</span>
-                        <span class="transaction-amount">${formatAmount(tx.amount)} ${tx.currency}</span>
-                    </div>
-                    <div class="transaction-details">
-                        <span>${tx.account_name}</span>
-                        <span>${formatDate(new Date(tx.operation_date))}</span>
-                    </div>
-                </li>
-            `).join('');
+            list.innerHTML = transfers.map(tx => {
+                const fromAccount = accounts.find(acc => acc.id === tx.account_id);
+                const toAccount = tx.related_account_id ? accounts.find(acc => acc.id === tx.related_account_id) : null;
+                const fromName = fromAccount ? fromAccount.name : tx.account_name || 'Неизвестный счет';
+                const toName = toAccount ? toAccount.name : 'Неизвестный счет';
+                
+                return `
+                    <li class="transaction-item" onclick="openTransferEdit(${tx.id})">
+                        <div class="transaction-header">
+                            <span class="transaction-category">${tx.description || 'Перевод'}</span>
+                            <span class="transaction-amount">${formatAmount(tx.amount)} ${tx.currency}</span>
+                        </div>
+                        <div class="transaction-details">
+                            <span>${fromName} → ${toName}</span>
+                            <span>${formatDate(new Date(tx.operation_date))}</span>
+                        </div>
+                    </li>
+                `;
+            }).join('');
         }
     } catch (error) {
         console.error('Error loading transfer history:', error);
