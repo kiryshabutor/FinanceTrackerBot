@@ -58,7 +58,3 @@ func (c *Cache) Close() error {
 	return c.client.Close()
 }
 
-
-
-
-

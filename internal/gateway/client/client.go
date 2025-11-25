@@ -59,6 +59,3 @@ func (c *Clients) GetUserIDByTelegramID(ctx context.Context, telegramID int64) (
 	}
 	return resp.UserId, nil
 }
-
-
-

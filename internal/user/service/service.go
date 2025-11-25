@@ -37,7 +37,3 @@ func (s *Service) GetUserByTelegramID(ctx context.Context, telegramID int64) (*r
 	}
 	return user, nil
 }
-
-
-
-

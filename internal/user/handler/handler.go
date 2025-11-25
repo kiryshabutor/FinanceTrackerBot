@@ -67,7 +67,3 @@ func getStringValue(ns sql.NullString) string {
 	}
 	return ""
 }
-
-
-
-

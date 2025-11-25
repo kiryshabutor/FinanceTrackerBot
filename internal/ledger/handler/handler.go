@@ -2,7 +2,6 @@ package handler
 
 import (
 	"context"
-	"database/sql"
 	"time"
 
 	"github.com/kiribu/financial-tracker/internal/ledger/service"
@@ -326,12 +325,5 @@ func parseTime(timeStr string) (time.Time, error) {
 		return time.Time{}, nil
 	}
 	return time.Parse("2006-01-02T15:04:05Z07:00", timeStr)
-}
-
-func getStringValue(ns sql.NullString) string {
-	if ns.Valid {
-		return ns.String
-	}
-	return ""
 }
 

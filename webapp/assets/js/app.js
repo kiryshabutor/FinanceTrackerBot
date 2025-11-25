@@ -24,6 +24,148 @@ let editingTransactionId = null;
 let editingAccountId = null;
 let selectedCategoryId = null;
 
+// Utility functions
+function normalizeAmount(value) {
+    if (!value) return null;
+    const normalized = String(value).trim().replace(',', '.');
+    const num = parseFloat(normalized);
+    if (isNaN(num) || num <= 0 || !isFinite(num)) return null;
+    return Math.round(num * 100) / 100;
+}
+
+function validateAmount(value, fieldId) {
+    const normalized = normalizeAmount(value);
+    if (normalized === null) {
+        const field = document.getElementById(fieldId);
+        if (field) field.classList.add('invalid');
+        return null;
+    }
+    return normalized.toString();
+}
+
+function validateDate(date, allowFuture = false) {
+    const today = new Date().toISOString().split('T')[0];
+    if (!allowFuture && date > today) {
+        showToast('Нельзя создавать транзакции с датой позже сегодняшнего дня');
+        return false;
+    }
+    return true;
+}
+
+async function apiRequest(url, options = {}) {
+    try {
+        const response = await fetch(url, {
+            headers: {'Content-Type': 'application/json'},
+            ...options
+        });
+        const data = await response.json();
+        if (response.ok) {
+            return { success: true, data };
+        }
+        return { success: false, error: data.error || 'Ошибка запроса' };
+    } catch (error) {
+        console.error('API request error:', error);
+        return { success: false, error: 'Ошибка соединения' };
+    }
+}
+
+function resetForm(formId) {
+    const form = document.getElementById(formId);
+    if (form) {
+        form.reset();
+        form.querySelectorAll('.form-input').forEach(field => {
+            field.classList.remove('invalid');
+        });
+    }
+}
+
+// Toast Notification
+function showToast(message) {
+    const toast = document.getElementById('toast');
+    const toastMessage = document.getElementById('toastMessage');
+    
+    toastMessage.textContent = message;
+    toast.classList.add('show');
+    
+    setTimeout(() => {
+        toast.classList.remove('show');
+    }, 3000);
+}
+
+// Form Validation
+function validateForm(form) {
+    let isValid = true;
+    const requiredFields = form.querySelectorAll('[required]');
+    
+    // Remove invalid class from all fields first
+    form.querySelectorAll('.form-input').forEach(field => {
+        field.classList.remove('invalid');
+    });
+    
+    // Check each required field
+    requiredFields.forEach(field => {
+        let value = field.value.trim();
+        const isEmpty = value === '' || value === null || value === undefined;
+        
+        // Special check for select elements
+        if (field.tagName === 'SELECT' && isEmpty) {
+            field.classList.add('invalid');
+            isValid = false;
+        } else if (field.tagName === 'INPUT') {
+            // Check if it's a number input (amount, balance fields)
+            const isNumberField = field.type === 'text' && (
+                field.id.includes('Amount') || 
+                field.id.includes('Balance')
+            );
+            
+            if (isEmpty) {
+                field.classList.add('invalid');
+                isValid = false;
+            } else if (isNumberField) {
+                // For number fields, check if value is valid after replacing comma
+                const numValue = value.replace(',', '.');
+                if (numValue === '' || isNaN(parseFloat(numValue))) {
+                    field.classList.add('invalid');
+                    isValid = false;
+                }
+            }
+        }
+    });
+    
+    // Special validation for transaction form - check category selection
+    if (form.id === 'transactionForm' && !selectedCategoryId) {
+        isValid = false;
+    }
+    
+    if (!isValid) {
+        // Show specific message for category if needed, otherwise general message
+        if (form.id === 'transactionForm' && !selectedCategoryId) {
+            showToast('Выберите категорию');
+        } else {
+            showToast('Заполните все обязательные поля');
+        }
+    }
+    
+    return isValid;
+}
+
+// Remove invalid class when user starts typing
+function setupFieldValidation() {
+    document.querySelectorAll('.form-input[required]').forEach(field => {
+        field.addEventListener('input', function() {
+            if (this.classList.contains('invalid')) {
+                this.classList.remove('invalid');
+            }
+        });
+        
+        field.addEventListener('change', function() {
+            if (this.classList.contains('invalid')) {
+                this.classList.remove('invalid');
+            }
+        });
+    });
+}
+
 // Custom Alert Modal (replaces tg.showAlert and alert)
 function showAlert(message, type = 'auto') {
     if (!message || typeof message !== 'string') {
@@ -155,6 +297,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('transactionDate').setAttribute('max', today);
     document.getElementById('editTransactionDate').setAttribute('max', today);
     
+    setupFieldValidation();
     setupEventListeners();
     loadUserInfo();
     loadAccounts();
@@ -205,7 +348,11 @@ function setupEventListeners() {
     // Buttons
     document.getElementById('addAccountBtn').addEventListener('click', () => {
         document.getElementById('accountModalTitle').textContent = 'Добавить счет';
-        document.getElementById('accountForm').reset();
+        const form = document.getElementById('accountForm');
+        form.reset();
+        form.querySelectorAll('.form-input').forEach(field => {
+            field.classList.remove('invalid');
+        });
         openModal('accountModal');
     });
 
@@ -226,15 +373,25 @@ function setupEventListeners() {
         openModal('moreCategoriesModal');
     });
     document.getElementById('addCategoryBtn').addEventListener('click', () => {
+        const form = document.getElementById('addCategoryForm');
+        form.reset();
+        form.querySelectorAll('.form-input').forEach(field => {
+            field.classList.remove('invalid');
+        });
         openModal('addCategoryModal');
     });
 
-    // Simple amount validation - allow only 0-9, dot and comma, only one dot/comma
+    // Simple amount validation - allow only 0-9, dot and comma, only one dot/comma, max 2 decimal places
     function setupAmountValidation(inputId) {
         const input = document.getElementById(inputId);
         if (!input) return;
         
         input.addEventListener('input', function() {
+            // Remove invalid class when user starts typing
+            if (this.classList.contains('invalid')) {
+                this.classList.remove('invalid');
+            }
+            
             let value = this.value;
             
             // Remove all characters except 0-9, dot, comma
@@ -265,6 +422,17 @@ function setupEventListeners() {
             if ((value.match(/,/g) || []).length > 1) {
                 const firstComma = value.indexOf(',');
                 value = value.substring(0, firstComma + 1) + value.substring(firstComma + 1).replace(/,/g, '');
+            }
+            
+            // Limit to 2 decimal places
+            const decimalSeparator = value.includes('.') ? '.' : (value.includes(',') ? ',' : null);
+            if (decimalSeparator) {
+                const parts = value.split(decimalSeparator);
+                if (parts.length === 2 && parts[1].length > 2) {
+                    // Limit to 2 decimal places
+                    parts[1] = parts[1].substring(0, 2);
+                    value = parts[0] + decimalSeparator + parts[1];
+                }
             }
             
             this.value = value;
@@ -527,61 +695,51 @@ async function loadSummary() {
 async function handleTransactionSubmit(e) {
     e.preventDefault();
     
-    if (!selectedCategoryId) {
-        showAlert('Выберите категорию');
+    const form = e.target;
+    if (!validateForm(form)) return;
+
+    const amountStr = validateAmount(document.getElementById('transactionAmount').value, 'transactionAmount');
+    if (!amountStr) {
+        showToast('Введите корректную сумму');
         return;
     }
 
-    let amount = document.getElementById('transactionAmount').value.replace(',', '.');
     const date = document.getElementById('transactionDate').value;
-    const comment = document.getElementById('transactionComment').value;
+    if (!validateDate(date)) return;
+
     const accountIdStr = document.getElementById('transactionAccount').value;
     const accountId = accountIdStr ? parseInt(accountIdStr) : null;
-
     if (!accountId) {
-        showAlert('Выберите счет');
+        showToast('Выберите счет');
+        document.getElementById('transactionAccount').classList.add('invalid');
         return;
     }
 
-    // Проверка, что дата не позже сегодняшнего дня
-    const today = new Date().toISOString().split('T')[0];
-    if (date > today) {
-        showAlert('Нельзя создавать транзакции с датой позже сегодняшнего дня');
-        return;
-    }
+    const endpoint = currentType === 'expense' ? 
+        `${gatewayUrl}/api/transactions/expense` : 
+        `${gatewayUrl}/api/transactions/income`;
 
-    try {
-        const endpoint = currentType === 'expense' ? 
-            `${gatewayUrl}/api/transactions/expense` : 
-            `${gatewayUrl}/api/transactions/income`;
+    const result = await apiRequest(endpoint, {
+        method: 'POST',
+        body: JSON.stringify({
+            telegram_id: telegramId,
+            account_id: accountId,
+            amount: amountStr,
+            category_id: selectedCategoryId,
+            description: document.getElementById('transactionComment').value,
+            operation_date: date ? new Date(date).toISOString() : new Date().toISOString()
+        })
+    });
 
-        const response = await fetch(endpoint, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                telegram_id: telegramId,
-                account_id: accountId,
-                amount: amount,
-                category_id: selectedCategoryId,
-                description: comment,
-                operation_date: date ? new Date(date).toISOString() : new Date().toISOString()
-            })
-        });
-
-        const data = await response.json();
-        if (response.ok) {
-            showAlert('Транзакция создана!');
-            closeModal('transactionModal');
-            document.getElementById('transactionForm').reset();
-            selectedCategoryId = null;
-            loadAccounts();
-            loadHomeData();
-        } else {
-            showAlert(data.error || 'Ошибка при создании транзакции');
-        }
-    } catch (error) {
-        console.error('Error creating transaction:', error);
-        showAlert('Ошибка при создании транзакции');
+    if (result.success) {
+        showAlert('Транзакция создана!');
+        closeModal('transactionModal');
+        resetForm('transactionForm');
+        selectedCategoryId = null;
+        loadAccounts();
+        loadHomeData();
+    } else {
+        showAlert(result.error || 'Ошибка при создании транзакции');
     }
 }
 
@@ -618,45 +776,39 @@ async function openTransactionEdit(transactionId) {
 
 async function handleTransactionEditSubmit(e) {
     e.preventDefault();
-    let amount = document.getElementById('editTransactionAmount').value.replace(',', '.');
-    const categoryId = document.getElementById('editTransactionCategory').value;
-    const date = document.getElementById('editTransactionDate').value;
-    const comment = document.getElementById('editTransactionComment').value;
-    const accountId = accounts.length > 0 ? accounts[0].id : null;
-
-    // Проверка, что дата не позже сегодняшнего дня
-    const today = new Date().toISOString().split('T')[0];
-    if (date > today) {
-        showAlert('Нельзя создавать транзакции с датой позже сегодняшнего дня');
+    
+    const form = e.target;
+    if (!validateForm(form)) return;
+    
+    const amountStr = validateAmount(document.getElementById('editTransactionAmount').value, 'editTransactionAmount');
+    if (!amountStr) {
+        showToast('Введите корректную сумму');
         return;
     }
 
-    try {
-        const response = await fetch(`${gatewayUrl}/api/transactions/${editingTransactionId}?telegram_id=${telegramId}`, {
-            method: 'PUT',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                account_id: accountId,
-                amount: amount,
-                category_id: parseInt(categoryId),
-                description: comment,
-                operation_date: new Date(date).toISOString()
-            })
-        });
+    const date = document.getElementById('editTransactionDate').value;
+    if (!validateDate(date)) return;
 
-        const data = await response.json();
-        if (response.ok) {
-            showAlert('Транзакция обновлена!');
-            closeModal('transactionEditModal');
-            editingTransactionId = null;
-            loadAccounts();
-            loadHomeData();
-        } else {
-            showAlert(data.error || 'Ошибка при обновлении транзакции');
-        }
-    } catch (error) {
-        console.error('Error updating transaction:', error);
-        showAlert('Ошибка при обновлении транзакции');
+    const accountId = accounts.length > 0 ? accounts[0].id : null;
+    const result = await apiRequest(`${gatewayUrl}/api/transactions/${editingTransactionId}?telegram_id=${telegramId}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+            account_id: accountId,
+            amount: amountStr,
+            category_id: parseInt(document.getElementById('editTransactionCategory').value),
+            description: document.getElementById('editTransactionComment').value,
+            operation_date: new Date(date).toISOString()
+        })
+    });
+
+    if (result.success) {
+        showAlert('Транзакция обновлена!');
+        closeModal('transactionEditModal');
+        editingTransactionId = null;
+        loadAccounts();
+        loadHomeData();
+    } else {
+        showAlert(result.error || 'Ошибка при обновлении транзакции');
     }
 }
 
@@ -664,33 +816,28 @@ async function handleDeleteTransaction() {
     const confirmed = await showConfirmDialog('Удалить эту транзакцию?');
     if (!confirmed) return;
 
-    try {
-        const response = await fetch(`${gatewayUrl}/api/transactions/${editingTransactionId}?telegram_id=${telegramId}`, {
-            method: 'DELETE'
-        });
+    const result = await apiRequest(`${gatewayUrl}/api/transactions/${editingTransactionId}?telegram_id=${telegramId}`, {
+        method: 'DELETE'
+    });
 
-        const data = await response.json();
-        if (response.ok) {
-            showAlert('Транзакция удалена!');
-            closeModal('transactionEditModal');
-            editingTransactionId = null;
-            loadAccounts();
-            loadHomeData();
-        } else {
-            showAlert(data.error || 'Ошибка при удалении транзакции');
-        }
-    } catch (error) {
-        console.error('Error deleting transaction:', error);
-        showAlert('Ошибка при удалении транзакции');
+    if (result.success) {
+        showAlert('Транзакция удалена!');
+        closeModal('transactionEditModal');
+        editingTransactionId = null;
+        loadAccounts();
+        loadHomeData();
+    } else {
+        showAlert(result.error || 'Ошибка при удалении транзакции');
     }
 }
 
 async function handleAccountSubmit(e) {
     e.preventDefault();
+    
+    const form = e.target;
+    if (!validateForm(form)) return;
+    
     const name = document.getElementById('accountName').value.trim();
-    let balance = document.getElementById('accountBalance').value.trim().replace(',', '.');
-
-    // Check for duplicate account name
     const existingAccount = accounts.find(acc => acc.name.toLowerCase() === name.toLowerCase() && !acc.is_archived);
     if (existingAccount) {
         showAlert('Счет с таким названием уже существует');
@@ -703,30 +850,30 @@ async function handleAccountSubmit(e) {
         currency: 'RUB'
     };
     
-    // Add balance only if provided
-    if (balance && balance !== '' && balance !== '0' && balance !== '0.00') {
-        requestBody.balance = balance;
+    const balanceStr = document.getElementById('accountBalance').value.trim();
+    if (balanceStr && balanceStr !== '0' && balanceStr !== '0.00') {
+        const normalizedBalance = normalizeAmount(balanceStr);
+        if (normalizedBalance !== null) {
+            requestBody.balance = normalizedBalance.toString();
+        } else {
+            showToast('Введите корректный баланс');
+            document.getElementById('accountBalance').classList.add('invalid');
+            return;
+        }
     }
 
-    try {
-        const response = await fetch(`${gatewayUrl}/api/accounts`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(requestBody)
-        });
+    const result = await apiRequest(`${gatewayUrl}/api/accounts`, {
+        method: 'POST',
+        body: JSON.stringify(requestBody)
+    });
 
-        const data = await response.json();
-        if (response.ok) {
-            showAlert('Счет создан!');
-            closeModal('accountModal');
-            document.getElementById('accountForm').reset();
-            loadAccounts();
-        } else {
-            showAlert(data.error || 'Ошибка при создании счета');
-        }
-    } catch (error) {
-        console.error('Error creating account:', error);
-        showAlert('Ошибка при создании счета');
+    if (result.success) {
+        showAlert('Счет создан!');
+        closeModal('accountModal');
+        resetForm('accountForm');
+        loadAccounts();
+    } else {
+        showAlert(result.error || 'Ошибка при создании счета');
     }
 }
 
@@ -742,10 +889,17 @@ function openAccountEdit(accountId) {
 
 async function handleAccountEditSubmit(e) {
     e.preventDefault();
+    
+    const form = e.target;
+    if (!validateForm(form)) return;
+    
     const name = document.getElementById('editAccountName').value.trim();
-    let balance = document.getElementById('editAccountBalance').value.replace(',', '.');
+    const balanceStr = validateAmount(document.getElementById('editAccountBalance').value, 'editAccountBalance');
+    if (!balanceStr) {
+        showToast('Введите корректный баланс');
+        return;
+    }
 
-    // Check for duplicate account name (excluding current account)
     const existingAccount = accounts.find(acc => 
         acc.id !== editingAccountId && 
         acc.name.toLowerCase() === name.toLowerCase() && 
@@ -756,29 +910,22 @@ async function handleAccountEditSubmit(e) {
         return;
     }
 
-    try {
-        const response = await fetch(`${gatewayUrl}/api/accounts/${editingAccountId}`, {
-            method: 'PUT',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                telegram_id: telegramId,
-                name: name,
-                balance: balance
-            })
-        });
+    const result = await apiRequest(`${gatewayUrl}/api/accounts/${editingAccountId}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+            telegram_id: telegramId,
+            name: name,
+            balance: balanceStr
+        })
+    });
 
-        const data = await response.json();
-        if (response.ok) {
-            showAlert('Счет обновлен!');
-            closeModal('accountEditModal');
-            editingAccountId = null;
-            loadAccounts();
-        } else {
-            showAlert(data.error || 'Ошибка при обновлении счета');
-        }
-    } catch (error) {
-        console.error('Error updating account:', error);
-        showAlert('Ошибка при обновлении счета');
+    if (result.success) {
+        showAlert('Счет обновлен!');
+        closeModal('accountEditModal');
+        editingAccountId = null;
+        loadAccounts();
+    } else {
+        showAlert(result.error || 'Ошибка при обновлении счета');
     }
 }
 
@@ -786,23 +933,17 @@ async function handleDeleteAccount() {
     const confirmed = await showConfirmDialog('Удалить этот счет? Все транзакции будут сохранены.');
     if (!confirmed) return;
 
-    try {
-        const response = await fetch(`${gatewayUrl}/api/accounts/${editingAccountId}?telegram_id=${telegramId}`, {
-            method: 'DELETE'
-        });
+    const result = await apiRequest(`${gatewayUrl}/api/accounts/${editingAccountId}?telegram_id=${telegramId}`, {
+        method: 'DELETE'
+    });
 
-        const data = await response.json();
-        if (response.ok) {
-            showAlert('Счет удален!');
-            closeModal('accountEditModal');
-            editingAccountId = null;
-            loadAccounts();
-        } else {
-            showAlert(data.error || 'Ошибка при удалении счета');
-        }
-    } catch (error) {
-        console.error('Error deleting account:', error);
-        showAlert('Ошибка при удалении счета');
+    if (result.success) {
+        showAlert('Счет удален!');
+        closeModal('accountEditModal');
+        editingAccountId = null;
+        loadAccounts();
+    } else {
+        showAlert(result.error || 'Ошибка при удалении счета');
     }
 }
 
@@ -821,41 +962,41 @@ async function loadTransferForm() {
 
 async function handleTransferSubmit(e) {
     e.preventDefault();
+    
+    const form = e.target;
+    if (!validateForm(form)) return;
+    
     const fromAccountId = document.getElementById('transferFromAccount').value;
     const toAccountId = document.getElementById('transferToAccount').value;
-    let amount = document.getElementById('transferAmount').value.replace(',', '.');
-    const comment = document.getElementById('transferComment').value;
-
     if (fromAccountId === toAccountId) {
-        showAlert('Нельзя переводить на тот же счет');
+        showToast('Нельзя переводить на тот же счет');
         return;
     }
 
-    try {
-        const response = await fetch(`${gatewayUrl}/api/transactions/transfer`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                telegram_id: telegramId,
-                from_account_id: parseInt(fromAccountId),
-                to_account_id: parseInt(toAccountId),
-                amount: amount,
-                description: comment
-            })
-        });
+    const amountStr = validateAmount(document.getElementById('transferAmount').value, 'transferAmount');
+    if (!amountStr) {
+        showToast('Введите корректную сумму');
+        return;
+    }
 
-        const data = await response.json();
-        if (response.ok) {
-            showAlert('Перевод выполнен!');
-            closeModal('transferModal');
-            document.getElementById('transferForm').reset();
-            loadAccounts();
-        } else {
-            showAlert(data.error || 'Ошибка при переводе');
-        }
-    } catch (error) {
-        console.error('Error creating transfer:', error);
-        showAlert('Ошибка при переводе');
+    const result = await apiRequest(`${gatewayUrl}/api/transactions/transfer`, {
+        method: 'POST',
+        body: JSON.stringify({
+            telegram_id: telegramId,
+            from_account_id: parseInt(fromAccountId),
+            to_account_id: parseInt(toAccountId),
+            amount: amountStr,
+            description: document.getElementById('transferComment').value
+        })
+    });
+
+    if (result.success) {
+        showAlert('Перевод выполнен!');
+        closeModal('transferModal');
+        resetForm('transferForm');
+        loadAccounts();
+    } else {
+        showAlert(result.error || 'Ошибка при переводе');
     }
 }
 
@@ -910,57 +1051,51 @@ async function openTransferEdit(transferId) {
 
 async function handleTransferEditSubmit(e) {
     e.preventDefault();
+    
+    const form = e.target;
+    if (!validateForm(form)) return;
+    
     const fromAccountId = document.getElementById('editTransferFromAccount').value;
     const toAccountId = document.getElementById('editTransferToAccount').value;
-    let amount = document.getElementById('editTransferAmount').value.replace(',', '.');
-    const date = document.getElementById('editTransferDate').value;
-    const comment = document.getElementById('editTransferComment').value;
-
     if (fromAccountId === toAccountId) {
-        showAlert('Нельзя переводить на тот же счет');
+        showToast('Нельзя переводить на тот же счет');
         return;
     }
 
-    // Проверка, что дата не позже сегодняшнего дня
-    const today = new Date().toISOString().split('T')[0];
-    if (date > today) {
-        showAlert('Нельзя создавать транзакции с датой позже сегодняшнего дня');
+    const amountStr = validateAmount(document.getElementById('editTransferAmount').value, 'editTransferAmount');
+    if (!amountStr) {
+        showToast('Введите корректную сумму');
         return;
     }
 
-    try {
-        const response = await fetch(`${gatewayUrl}/api/transactions/${editingTransferId}?telegram_id=${telegramId}`, {
-            method: 'PUT',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                account_id: parseInt(fromAccountId),
-                related_account_id: parseInt(toAccountId),
-                amount: amount,
-                category_id: 0,
-                description: comment,
-                operation_date: new Date(date).toISOString()
-            })
-        });
+    const date = document.getElementById('editTransferDate').value;
+    if (!validateDate(date)) return;
 
-        const data = await response.json();
-        if (response.ok) {
-            showAlert('Перевод обновлен!');
-            closeModal('transferEditModal');
-            editingTransferId = null;
-            loadAccounts();
-            loadTransferHistory();
-        } else {
-            showAlert(data.error || 'Ошибка при обновлении перевода');
-        }
-    } catch (error) {
-        console.error('Error updating transfer:', error);
-        showAlert('Ошибка при обновлении перевода');
+    const result = await apiRequest(`${gatewayUrl}/api/transactions/${editingTransferId}?telegram_id=${telegramId}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+            account_id: parseInt(fromAccountId),
+            related_account_id: parseInt(toAccountId),
+            amount: amountStr,
+            category_id: 0,
+            description: document.getElementById('editTransferComment').value,
+            operation_date: new Date(date).toISOString()
+        })
+    });
+
+    if (result.success) {
+        showAlert('Перевод обновлен!');
+        closeModal('transferEditModal');
+        editingTransferId = null;
+        loadAccounts();
+        loadTransferHistory();
+    } else {
+        showAlert(result.error || 'Ошибка при обновлении перевода');
     }
 }
 
 async function handleDeleteTransfer() {
-    const transferIdToDelete = editingTransferId;
-    if (!transferIdToDelete) {
+    if (!editingTransferId) {
         showAlert('Не выбран перевод для удаления');
         return;
     }
@@ -968,47 +1103,17 @@ async function handleDeleteTransfer() {
     const confirmed = await showConfirmDialog('Удалить этот перевод?');
     if (!confirmed) return;
 
-    try {
-        console.log('Deleting transfer:', transferIdToDelete);
-        const response = await fetch(`${gatewayUrl}/api/transactions/${transferIdToDelete}?telegram_id=${telegramId}`, {
-            method: 'DELETE'
-        });
+    const result = await apiRequest(`${gatewayUrl}/api/transactions/${editingTransferId}?telegram_id=${telegramId}`, {
+        method: 'DELETE'
+    });
 
-        console.log('Delete response status:', response.status);
-
-        let data = {};
-        try {
-            const text = await response.text();
-            if (text) {
-                data = JSON.parse(text);
-            }
-        } catch (e) {
-            console.log('Response is not JSON or empty');
-        }
-
-        if (response.ok) {
-            console.log('Transfer deleted successfully');
-            editingTransferId = null;
-            closeModal('transferEditModal');
-            
-            // Обновить данные
-            await Promise.all([
-                loadAccounts(),
-                loadTransferHistory()
-            ]);
-            
-            // Показать сообщение после закрытия модального окна
-            setTimeout(() => {
-                showAlert('Перевод удален!');
-            }, 100);
-        } else {
-            const errorMsg = data.error || `Ошибка ${response.status}: ${response.statusText}`;
-            showAlert(errorMsg);
-            console.error('Delete failed:', response.status, data);
-        }
-    } catch (error) {
-        console.error('Error deleting transfer:', error);
-        showAlert('Ошибка при удалении перевода: ' + error.message);
+    if (result.success) {
+        editingTransferId = null;
+        closeModal('transferEditModal');
+        await Promise.all([loadAccounts(), loadTransferHistory()]);
+        setTimeout(() => showAlert('Перевод удален!'), 100);
+    } else {
+        showAlert(result.error || 'Ошибка при удалении перевода');
     }
 }
 
@@ -1043,37 +1148,41 @@ async function loadTransferHistory() {
 
 async function handleAddCategorySubmit(e) {
     e.preventDefault();
-    const name = document.getElementById('categoryName').value;
+    
+    const form = e.target;
+    if (!validateForm(form)) return;
+    
+    const result = await apiRequest(`${gatewayUrl}/api/categories`, {
+        method: 'POST',
+        body: JSON.stringify({
+            telegram_id: telegramId,
+            name: document.getElementById('categoryName').value,
+            type: currentType
+        })
+    });
 
-    try {
-        const response = await fetch(`${gatewayUrl}/api/categories`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                telegram_id: telegramId,
-                name: name,
-                type: currentType
-            })
-        });
-
-        const data = await response.json();
-        if (response.ok) {
-            showAlert('Категория создана!');
-            closeModal('addCategoryModal');
-            document.getElementById('addCategoryForm').reset();
-            await loadCategories(currentType);
-            await loadAllCategories();
-        } else {
-            showAlert(data.error || 'Ошибка при создании категории');
-        }
-    } catch (error) {
-        console.error('Error creating category:', error);
-        showAlert('Ошибка при создании категории');
+    if (result.success) {
+        showAlert('Категория создана!');
+        closeModal('addCategoryModal');
+        resetForm('addCategoryForm');
+        await loadCategories(currentType);
+        await loadAllCategories();
+    } else {
+        showAlert(result.error || 'Ошибка при создании категории');
     }
 }
 
 function openModal(modalId) {
-    document.getElementById(modalId).classList.add('show');
+    const modal = document.getElementById(modalId);
+    modal.classList.add('show');
+    
+    // Remove invalid classes from all form inputs when opening modal
+    const form = modal.querySelector('form');
+    if (form) {
+        form.querySelectorAll('.form-input').forEach(field => {
+            field.classList.remove('invalid');
+        });
+    }
 }
 
 function closeModal(modalId) {
@@ -1095,7 +1204,12 @@ document.addEventListener('DOMContentLoaded', () => {
     addButton.onclick = () => {
         document.getElementById('transactionModalTitle').textContent = 
             currentType === 'expense' ? 'Добавить расход' : 'Добавить доход';
-        document.getElementById('transactionForm').reset();
+        const form = document.getElementById('transactionForm');
+        form.reset();
+        // Remove invalid classes when opening modal
+        form.querySelectorAll('.form-input').forEach(field => {
+            field.classList.remove('invalid');
+        });
         const today = new Date().toISOString().split('T')[0];
         document.getElementById('transactionDate').value = today;
         document.getElementById('transactionDate').setAttribute('max', today);

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Financial Tracker</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="stylesheet" href="/webapp/assets/css/style.css">
 </head>
 <body>
     <div class="app-container">
@@ -106,7 +106,7 @@
                 <h2 class="modal-title" id="transactionModalTitle">Добавить транзакцию</h2>
                 <button class="close-button" onclick="closeModal('transactionModal')">×</button>
             </div>
-            <form id="transactionForm">
+            <form id="transactionForm" novalidate>
                 <div class="form-group">
                     <label class="form-label">Сумма</label>
                     <input type="text" class="form-input" id="transactionAmount" placeholder="0.00" inputmode="decimal" required>
@@ -142,7 +142,7 @@
                 <h2 class="modal-title">Редактировать транзакцию</h2>
                 <button class="close-button" onclick="closeModal('transactionEditModal')">×</button>
             </div>
-            <form id="transactionEditForm">
+            <form id="transactionEditForm" novalidate>
                 <div class="form-group">
                     <label class="form-label">Сумма</label>
                     <input type="text" class="form-input" id="editTransactionAmount" placeholder="0.00" inputmode="decimal" required>
@@ -172,7 +172,7 @@
                 <h2 class="modal-title" id="accountModalTitle">Добавить счет</h2>
                 <button class="close-button" onclick="closeModal('accountModal')">×</button>
             </div>
-            <form id="accountForm">
+            <form id="accountForm" novalidate>
                 <div class="form-group">
                     <label class="form-label">Название</label>
                     <input type="text" class="form-input" id="accountName" placeholder="Название счета" required>
@@ -193,7 +193,7 @@
                 <h2 class="modal-title">Редактировать счет</h2>
                 <button class="close-button" onclick="closeModal('accountEditModal')">×</button>
             </div>
-            <form id="accountEditForm">
+            <form id="accountEditForm" novalidate>
                 <div class="form-group">
                     <label class="form-label">Название</label>
                     <input type="text" class="form-input" id="editAccountName" placeholder="Название счета" required>
@@ -215,7 +215,7 @@
                 <h2 class="modal-title">Перевод между счетами</h2>
                 <button class="close-button" onclick="closeModal('transferModal')">×</button>
             </div>
-            <form id="transferForm">
+            <form id="transferForm" novalidate>
                 <div class="form-group">
                     <label class="form-label">С какого счета</label>
                     <select class="form-input" id="transferFromAccount" required></select>
@@ -257,7 +257,7 @@
                 <h2 class="modal-title">Редактировать перевод</h2>
                 <button class="close-button" onclick="closeModal('transferEditModal')">×</button>
             </div>
-            <form id="transferEditForm">
+            <form id="transferEditForm" novalidate>
                 <div class="form-group">
                     <label class="form-label">С какого счета</label>
                     <select class="form-input" id="editTransferFromAccount" required></select>
@@ -303,7 +303,7 @@
                 <h2 class="modal-title">Добавить категорию</h2>
                 <button class="close-button" onclick="closeModal('addCategoryModal')">×</button>
             </div>
-            <form id="addCategoryForm">
+            <form id="addCategoryForm" novalidate>
                 <div class="form-group">
                     <label class="form-label">Название</label>
                     <input type="text" class="form-input" id="categoryName" placeholder="Название категории" required>
@@ -337,6 +337,14 @@
         </div>
     </div>
 
-    <script src="assets/js/app.js"></script>
+    <!-- Toast Notification -->
+    <div class="toast" id="toast">
+        <div class="toast-content">
+            <span class="toast-icon">⚠️</span>
+            <span class="toast-message" id="toastMessage">Заполните все обязательные поля</span>
+        </div>
+    </div>
+
+    <script src="/webapp/assets/js/app.js"></script>
 </body>
 </html>
