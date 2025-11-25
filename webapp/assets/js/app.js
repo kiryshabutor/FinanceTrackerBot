@@ -341,6 +341,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     setupFieldValidation();
     setupEventListeners();
+    setupAddTransactionButton();
     loadUserInfo();
     loadAccounts();
     loadCategories(currentType);
@@ -1247,39 +1248,36 @@ function formatAmount(amount) {
     return num.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-// Add button to create transaction
-document.addEventListener('DOMContentLoaded', () => {
-    const homeTab = document.getElementById('homeTab');
-    const addButton = document.createElement('button');
-    addButton.className = 'submit-button';
-    addButton.style.cssText = 'position: fixed; bottom: 20px; right: 20px; width: 60px; height: 60px; border-radius: 50%; font-size: 24px; z-index: 100;';
-    addButton.textContent = '+';
-    addButton.onclick = () => {
-        document.getElementById('transactionModalTitle').textContent = 
-            currentType === 'expense' ? 'Добавить расход' : 'Добавить доход';
-        const form = document.getElementById('transactionForm');
-        form.reset();
-        // Remove invalid classes when opening modal
-        form.querySelectorAll('.form-input').forEach(field => {
-            field.classList.remove('invalid');
+// Setup add transaction button
+function setupAddTransactionButton() {
+    const addButton = document.getElementById('addTransactionBtn');
+    if (addButton) {
+        addButton.addEventListener('click', () => {
+            document.getElementById('transactionModalTitle').textContent = 
+                currentType === 'expense' ? 'Добавить расход' : 'Добавить доход';
+            const form = document.getElementById('transactionForm');
+            form.reset();
+            // Remove invalid classes when opening modal
+            form.querySelectorAll('.form-input').forEach(field => {
+                field.classList.remove('invalid');
+            });
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('transactionDate').value = today;
+            document.getElementById('transactionDate').setAttribute('max', today);
+            selectedCategoryId = null;
+            document.querySelectorAll('#categoriesGrid .category-button').forEach(btn => btn.classList.remove('active'));
+            
+            // Заполнить select счетами
+            const accountSelect = document.getElementById('transactionAccount');
+            accountSelect.innerHTML = '<option value="">Выберите счет</option>';
+            accounts.forEach(acc => {
+                const option = document.createElement('option');
+                option.value = acc.id;
+                option.textContent = `${acc.name} (${formatAmount(acc.balance)} ${acc.currency})`;
+                accountSelect.appendChild(option);
+            });
+            
+            openModal('transactionModal');
         });
-        const today = new Date().toISOString().split('T')[0];
-        document.getElementById('transactionDate').value = today;
-        document.getElementById('transactionDate').setAttribute('max', today);
-        selectedCategoryId = null;
-        document.querySelectorAll('#categoriesGrid .category-button').forEach(btn => btn.classList.remove('active'));
-        
-        // Заполнить select счетами
-        const accountSelect = document.getElementById('transactionAccount');
-        accountSelect.innerHTML = '<option value="">Выберите счет</option>';
-        accounts.forEach(acc => {
-            const option = document.createElement('option');
-            option.value = acc.id;
-            option.textContent = `${acc.name} (${formatAmount(acc.balance)} ${acc.currency})`;
-            accountSelect.appendChild(option);
-        });
-        
-        openModal('transactionModal');
-    };
-    homeTab.appendChild(addButton);
-});
+    }
+}

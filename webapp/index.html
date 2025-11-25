@@ -72,6 +72,9 @@
                 <ul class="transactions-list" id="transactionsList">
                     <li class="loading">Загрузка...</li>
                 </ul>
+
+                <!-- Add Transaction Button -->
+                <button class="submit-button" id="addTransactionBtn" style="margin-top: 20px;">+ Добавить транзакцию</button>
             </div>
 
             <!-- Accounts Tab -->
@@ -101,7 +104,7 @@
 
     <!-- Transaction Form Modal -->
     <div class="modal" id="transactionModal">
-        <div class="modal-content">
+        <div class="modal-content modal-fullscreen">
             <div class="modal-header">
                 <h2 class="modal-title" id="transactionModalTitle">Добавить транзакцию</h2>
                 <button class="close-button" onclick="closeModal('transactionModal')">×</button>
