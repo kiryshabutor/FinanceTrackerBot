@@ -26,10 +26,16 @@ let selectedCategoryId = null;
 
 // Utility functions
 function normalizeAmount(value) {
-    if (!value) return null;
-    const normalized = String(value).trim().replace(',', '.');
+    if (value === null || value === undefined) return null;
+    const trimmed = String(value).trim();
+    if (trimmed === '') return null;
+    const normalized = trimmed.replace(',', '.');
     const num = parseFloat(normalized);
-    if (isNaN(num) || num <= 0 || !isFinite(num)) return null;
+    // Explicitly allow zero value
+    if (normalized === '0' || normalized === '0.0' || normalized === '0.00') {
+        return 0;
+    }
+    if (isNaN(num) || num < 0 || !isFinite(num)) return null;
     return Math.round(num * 100) / 100;
 }
 
@@ -40,6 +46,7 @@ function validateAmount(value, fieldId) {
         if (field) field.classList.add('invalid');
         return null;
     }
+    // normalized can be 0, which is a valid value
     return normalized.toString();
 }
 
@@ -124,7 +131,9 @@ function validateForm(form) {
             } else if (isNumberField) {
                 // For number fields, check if value is valid after replacing comma
                 const numValue = value.replace(',', '.');
-                if (numValue === '' || isNaN(parseFloat(numValue))) {
+                const parsed = parseFloat(numValue);
+                // Allow zero value (0, 0.0, 0.00, etc.)
+                if (numValue === '' || (isNaN(parsed) && numValue !== '0' && numValue !== '0.0' && numValue !== '0.00')) {
                     field.classList.add('invalid');
                     isValid = false;
                 }
@@ -162,6 +171,36 @@ function setupFieldValidation() {
             if (this.classList.contains('invalid')) {
                 this.classList.remove('invalid');
             }
+        });
+    });
+}
+
+// Setup account name inputs to allow any characters including Russian
+function setupAccountNameInputs() {
+    const accountNameInputs = ['accountName', 'editAccountName'];
+    
+    accountNameInputs.forEach(inputId => {
+        const input = document.getElementById(inputId);
+        if (!input) return;
+        
+        // Ensure input accepts any characters
+        input.setAttribute('lang', 'ru');
+        input.setAttribute('inputmode', 'text');
+        
+        // Remove any potential restrictions on keydown/keypress
+        input.addEventListener('keydown', function(e) {
+            // Allow all keys including Russian characters
+            // Don't block any input
+        });
+        
+        input.addEventListener('keypress', function(e) {
+            // Allow all keys including Russian characters
+            // Don't block any input
+        });
+        
+        input.addEventListener('input', function(e) {
+            // Allow all input including Russian characters
+            // Don't filter or modify the input
         });
     });
 }
@@ -296,6 +335,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const today = new Date().toISOString().split('T')[0];
     document.getElementById('transactionDate').setAttribute('max', today);
     document.getElementById('editTransactionDate').setAttribute('max', today);
+    
+    // Разрешить ввод любых символов (включая русские) в полях названия счета
+    setupAccountNameInputs();
     
     setupFieldValidation();
     setupEventListeners();
@@ -890,10 +932,18 @@ async function handleAccountEditSubmit(e) {
     if (!validateForm(form)) return;
     
     const name = document.getElementById('editAccountName').value.trim();
-    const balanceStr = validateAmount(document.getElementById('editAccountBalance').value, 'editAccountBalance');
-    if (!balanceStr) {
-        showToast('Введите корректный баланс');
-        return;
+    const balanceInput = document.getElementById('editAccountBalance').value.trim();
+    
+    // Explicitly handle zero value
+    let balanceStr;
+    if (balanceInput === '0' || balanceInput === '0.0' || balanceInput === '0.00' || balanceInput === '0,0' || balanceInput === '0,00') {
+        balanceStr = '0';
+    } else {
+        balanceStr = validateAmount(balanceInput, 'editAccountBalance');
+        if (!balanceStr) {
+            showToast('Введите корректный баланс');
+            return;
+        }
     }
 
     const existingAccount = accounts.find(acc => 
