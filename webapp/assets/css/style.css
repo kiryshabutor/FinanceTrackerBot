@@ -300,6 +300,112 @@ body {
     cursor: not-allowed;
 }
 
+/* Period Selector */
+.period-selector {
+    margin-bottom: var(--spacing-lg);
+}
+
+.period-tabs {
+    display: flex;
+    gap: 3px;
+    margin-bottom: 10px;
+    border-bottom: 2px solid rgba(2, 110, 129, 0.2);
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.period-tab {
+    padding: 8px 10px;
+    background: none;
+    border: none;
+    color: var(--color-primary);
+    font-size: 14px;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    transition: border-color var(--transition);
+    white-space: nowrap;
+    -webkit-tap-highlight-color: transparent;
+    flex: 1;
+    min-width: 0;
+}
+
+.period-tab:focus,
+.period-tab:active {
+    outline: none;
+}
+
+.period-tab.active {
+    border-bottom-color: var(--color-secondary);
+    font-weight: 600;
+    color: var(--color-secondary);
+}
+
+.date-navigation {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+    margin-top: 10px;
+    padding: 5px 0;
+}
+
+.date-navigation.hidden {
+    display: none;
+}
+
+.date-nav-btn {
+    background: none;
+    border: none;
+    color: var(--color-primary);
+    font-size: 20px;
+    cursor: pointer;
+    padding: 5px 10px;
+    transition: opacity var(--transition);
+    -webkit-tap-highlight-color: transparent;
+}
+
+.date-nav-btn:focus,
+.date-nav-btn:active {
+    outline: none;
+}
+
+.date-nav-btn:hover {
+    opacity: 0.7;
+}
+
+.date-nav-btn:active {
+    opacity: 0.5;
+}
+
+.date-nav-btn.hidden {
+    visibility: hidden;
+    pointer-events: none;
+    opacity: 0;
+}
+
+.date-display {
+    font-size: 16px;
+    color: var(--color-primary);
+    font-weight: 500;
+    min-width: 200px;
+    text-align: center;
+}
+
+.date-display.clickable {
+    cursor: pointer;
+    transition: opacity var(--transition);
+    user-select: none;
+}
+
+.date-display.clickable:hover {
+    opacity: 0.7;
+}
+
+.date-display.clickable:active {
+    opacity: 0.5;
+}
+
 /* Summary Card */
 .summary-card {
     background: var(--color-bg-lighter);

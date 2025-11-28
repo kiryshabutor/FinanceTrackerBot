@@ -18,6 +18,8 @@ let currentPeriod = 'day';
 let currentDate = new Date();
 let periodStartDate = null;
 let periodEndDate = null;
+let customStartDate = null;
+let customEndDate = null;
 let accounts = [];
 let categories = [];
 let editingTransactionId = null;
@@ -342,6 +344,19 @@ document.addEventListener('DOMContentLoaded', () => {
     setupFieldValidation();
     setupEventListeners();
     setupAddTransactionButton();
+    
+    // Инициализация периода
+    currentDate = new Date();
+    currentPeriod = 'week';
+    // Установить активную вкладку периода
+    document.querySelectorAll('.period-tab').forEach(tab => {
+        tab.classList.remove('active');
+        if (tab.dataset.period === currentPeriod) {
+            tab.classList.add('active');
+        }
+    });
+    updateDateDisplay();
+    
     loadUserInfo();
     loadAccounts();
     loadCategories(currentType);
@@ -372,6 +387,27 @@ function setupEventListeners() {
         });
     });
 
+    // Period selector
+    document.querySelectorAll('.period-tab').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const period = e.currentTarget.dataset.period;
+            selectPeriod(period);
+        });
+    });
+
+    // Date navigation
+    document.getElementById('dateNavPrev').addEventListener('click', () => {
+        navigatePeriod(-1);
+    });
+
+    document.getElementById('dateNavNext').addEventListener('click', () => {
+        navigatePeriod(1);
+    });
+
+    // Date display click - open period selector
+    document.getElementById('dateRangeDisplay').addEventListener('click', () => {
+        openPeriodSelector();
+    });
 
     // Balance account selector
     document.getElementById('balanceAccountSelect').addEventListener('change', () => {
@@ -387,6 +423,11 @@ function setupEventListeners() {
     document.getElementById('transferEditForm').addEventListener('submit', handleTransferEditSubmit);
     document.getElementById('deleteTransferBtn').addEventListener('click', handleDeleteTransfer);
     document.getElementById('addCategoryForm').addEventListener('submit', handleAddCategorySubmit);
+    document.getElementById('customPeriodForm').addEventListener('submit', handleCustomPeriodSubmit);
+    document.getElementById('daySelectorForm').addEventListener('submit', handleDaySelectorSubmit);
+    document.getElementById('weekSelectorForm').addEventListener('submit', handleWeekSelectorSubmit);
+    document.getElementById('monthSelectorForm').addEventListener('submit', handleMonthSelectorSubmit);
+    document.getElementById('yearSelectorForm').addEventListener('submit', handleYearSelectorSubmit);
 
     // Buttons
     document.getElementById('addAccountBtn').addEventListener('click', () => {
@@ -520,6 +561,397 @@ function switchTab(tab) {
 
 function formatDate(date) {
     return date.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+// Period management functions
+function formatDateForDisplay(date) {
+    const months = ['янв.', 'февр.', 'марта', 'апр.', 'мая', 'июня', 'июля', 'авг.', 'сент.', 'окт.', 'нояб.', 'дек.'];
+    const day = date.getDate();
+    const month = months[date.getMonth()];
+    return `${day} ${month}`;
+}
+
+function getPeriodDates(period, date) {
+    const result = { start: null, end: null };
+    const d = new Date(date);
+    
+    switch (period) {
+        case 'day':
+            d.setHours(0, 0, 0, 0);
+            result.start = new Date(d);
+            result.end = new Date(d);
+            result.end.setHours(23, 59, 59, 999);
+            break;
+            
+        case 'week':
+            // Неделя: только прошедшие даты + сегодня
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            // Начало недели (понедельник)
+            const dayOfWeek = d.getDay();
+            const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek; // Если воскресенье, откат на 6 дней назад
+            d.setDate(d.getDate() + diff);
+            d.setHours(0, 0, 0, 0);
+            result.start = new Date(d);
+            
+            // Конец недели - либо воскресенье, либо сегодня (если сегодня раньше)
+            result.end = new Date(d);
+            result.end.setDate(result.end.getDate() + 6);
+            result.end.setHours(23, 59, 59, 999);
+            
+            // Если конец недели в будущем, ограничиваем сегодняшним днем
+            if (result.end > today) {
+                result.end = new Date(today);
+                result.end.setHours(23, 59, 59, 999);
+            }
+            break;
+            
+        case 'month':
+            // Начало месяца
+            result.start = new Date(d.getFullYear(), d.getMonth(), 1);
+            result.start.setHours(0, 0, 0, 0);
+            
+            // Конец месяца
+            result.end = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+            result.end.setHours(23, 59, 59, 999);
+            break;
+            
+        case 'year':
+            // Начало года
+            result.start = new Date(d.getFullYear(), 0, 1);
+            result.start.setHours(0, 0, 0, 0);
+            
+            // Конец года
+            result.end = new Date(d.getFullYear(), 11, 31);
+            result.end.setHours(23, 59, 59, 999);
+            break;
+            
+        case 'custom':
+            // Для кастомного периода используем сохраненные даты или текущую дату
+            if (customStartDate && customEndDate) {
+                result.start = new Date(customStartDate);
+                result.end = new Date(customEndDate);
+            } else {
+                d.setHours(0, 0, 0, 0);
+                result.start = new Date(d);
+                result.end = new Date(d);
+                result.end.setHours(23, 59, 59, 999);
+            }
+            break;
+    }
+    
+    return result;
+}
+
+function getDateRangeDisplay(period, date) {
+    const dates = getPeriodDates(period, date);
+    
+    if (period === 'day') {
+        return formatDateForDisplay(dates.start);
+    } else if (period === 'month') {
+        // Для месяца показывать название месяца и год
+        const monthNames = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 
+                          'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+        return `${monthNames[dates.start.getMonth()]} ${dates.start.getFullYear()}`;
+    } else if (period === 'year') {
+        // Для года показывать только год
+        return dates.start.getFullYear().toString();
+    } else if (period === 'custom' && customStartDate && customEndDate) {
+        // Для кастомного периода показывать диапазон
+        const startStr = formatDateForDisplay(customStartDate);
+        const endStr = formatDateForDisplay(customEndDate);
+        return `${startStr} - ${endStr}`;
+    } else {
+        // Для недели показывать диапазон
+        const startStr = formatDateForDisplay(dates.start);
+        const endStr = formatDateForDisplay(dates.end);
+        return `${startStr} - ${endStr}`;
+    }
+}
+
+function updateDateDisplay() {
+    const display = document.getElementById('dateRangeDisplay');
+    const prevBtn = document.getElementById('dateNavPrev');
+    const nextBtn = document.getElementById('dateNavNext');
+    
+    if (display) {
+        display.textContent = getDateRangeDisplay(currentPeriod, currentDate);
+    }
+    
+    // Скрывать только стрелки навигации для кастомного периода (отображение даты остается видимым)
+    if (currentPeriod === 'custom') {
+        if (prevBtn) prevBtn.classList.add('hidden');
+        if (nextBtn) nextBtn.classList.add('hidden');
+    } else {
+        if (prevBtn) prevBtn.classList.remove('hidden');
+        updateNavigationButtons();
+    }
+    
+    updatePeriodDates();
+}
+
+function updateNavigationButtons() {
+    const prevBtn = document.getElementById('dateNavPrev');
+    const nextBtn = document.getElementById('dateNavNext');
+    
+    if (!nextBtn) return;
+    
+    // Проверяем, будет ли следующий период в будущем
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+    
+    const nextDate = new Date(currentDate);
+    switch (currentPeriod) {
+        case 'day':
+            nextDate.setDate(nextDate.getDate() + 1);
+            break;
+        case 'week':
+            nextDate.setDate(nextDate.getDate() + 7);
+            break;
+        case 'month':
+            nextDate.setMonth(nextDate.getMonth() + 1);
+            break;
+        case 'year':
+            nextDate.setFullYear(nextDate.getFullYear() + 1);
+            break;
+    }
+    
+    // Получаем период для следующей даты
+    const nextPeriodDates = getPeriodDates(currentPeriod, nextDate);
+    
+    // Проверяем: если начало следующего периода после сегодня, скрываем стрелку
+    // Для недели: если начало следующей недели после сегодня (или равна сегодня, но конец в будущем)
+    if (currentPeriod === 'week') {
+        // Для недели: если следующая неделя начинается после сегодня - скрываем
+        if (nextPeriodDates.start > today) {
+            nextBtn.classList.add('hidden');
+        } else {
+            nextBtn.classList.remove('hidden');
+        }
+    } else {
+        // Для остальных периодов: если начало следующего периода в будущем - скрываем
+        const nextStart = new Date(nextPeriodDates.start);
+        nextStart.setHours(0, 0, 0, 0);
+        const todayStart = new Date(today);
+        todayStart.setHours(0, 0, 0, 0);
+        
+        if (nextStart > todayStart) {
+            nextBtn.classList.add('hidden');
+        } else {
+            nextBtn.classList.remove('hidden');
+        }
+    }
+}
+
+function updatePeriodDates() {
+    const dates = getPeriodDates(currentPeriod, currentDate);
+    periodStartDate = dates.start;
+    periodEndDate = dates.end;
+}
+
+function navigatePeriod(direction) {
+    const newDate = new Date(currentDate);
+    
+    switch (currentPeriod) {
+        case 'day':
+            newDate.setDate(newDate.getDate() + direction);
+            break;
+        case 'week':
+            newDate.setDate(newDate.getDate() + (direction * 7));
+            break;
+        case 'month':
+            newDate.setMonth(newDate.getMonth() + direction);
+            break;
+        case 'year':
+            newDate.setFullYear(newDate.getFullYear() + direction);
+            break;
+        case 'custom':
+            // Навигация не используется для кастомного периода
+            return;
+    }
+    
+    currentDate = newDate;
+    updateDateDisplay();
+}
+
+function selectPeriod(period) {
+    if (period === 'custom') {
+        // Установить период как custom и обновить отображение перед открытием модального окна
+        currentPeriod = 'custom';
+        document.querySelectorAll('.period-tab').forEach(tab => {
+            tab.classList.remove('active');
+            if (tab.dataset.period === 'custom') {
+                tab.classList.add('active');
+            }
+        });
+        // Обновить отображение периода перед открытием модального окна
+        updateDateDisplay();
+        // Открыть модальное окно для выбора периода
+        openCustomPeriodModal();
+        return;
+    }
+    
+    currentPeriod = period;
+    document.querySelectorAll('.period-tab').forEach(tab => {
+        tab.classList.remove('active');
+        if (tab.dataset.period === period) {
+            tab.classList.add('active');
+        }
+    });
+    updateDateDisplay();
+}
+
+function getTransactionDate() {
+    // Возвращает дату для создания транзакции (самая левая дата диапазона)
+    updatePeriodDates();
+    const dateToUse = periodStartDate || currentDate;
+    // Возвращаем дату с правильным временем (начало дня)
+    const result = new Date(dateToUse);
+    result.setHours(0, 0, 0, 0);
+    return result;
+}
+
+function openCustomPeriodModal() {
+    const modal = document.getElementById('customPeriodModal');
+    const form = document.getElementById('customPeriodForm');
+    
+    // Установить максимальную дату (сегодня)
+    const today = new Date().toISOString().split('T')[0];
+    const dateFromInput = document.getElementById('periodDateFrom');
+    const dateToInput = document.getElementById('periodDateTo');
+    
+    dateFromInput.setAttribute('max', today);
+    dateToInput.setAttribute('max', today);
+    
+    // Заполнить даты если они уже выбраны, иначе использовать текущий период
+    if (customStartDate && customEndDate) {
+        dateFromInput.value = customStartDate.toISOString().split('T')[0];
+        dateToInput.value = customEndDate.toISOString().split('T')[0];
+    } else {
+        // Использовать текущий период как начальные значения
+        const dates = getPeriodDates(currentPeriod, currentDate);
+        dateFromInput.value = dates.start.toISOString().split('T')[0];
+        dateToInput.value = dates.end.toISOString().split('T')[0];
+    }
+    
+    // Убрать класс invalid если есть
+    form.querySelectorAll('.form-input').forEach(field => {
+        field.classList.remove('invalid');
+    });
+    
+    // Добавить валидацию в реальном времени
+    setupCustomPeriodValidation();
+    
+    openModal('customPeriodModal');
+}
+
+function setupCustomPeriodValidation() {
+    const dateFromInput = document.getElementById('periodDateFrom');
+    const dateToInput = document.getElementById('periodDateTo');
+    
+    if (!dateFromInput || !dateToInput) return;
+    
+    // Функция обновления минимальной даты для поля "до"
+    function updateDateToMin() {
+        const fromValue = dateFromInput.value;
+        if (fromValue) {
+            // Устанавливаем минимальную дату для поля "до" равной дате "от"
+            dateToInput.setAttribute('min', fromValue);
+            
+            // Если текущее значение "до" меньше "от", обновляем его
+            const toValue = dateToInput.value;
+            if (toValue && toValue < fromValue) {
+                dateToInput.value = fromValue;
+            }
+        }
+        validateDates();
+    }
+    
+    // Функция проверки валидности
+    function validateDates() {
+        const fromValue = dateFromInput.value;
+        const toValue = dateToInput.value;
+        
+        if (!fromValue || !toValue) {
+            // Убираем ошибки если поля пустые
+            dateFromInput.classList.remove('invalid');
+            dateToInput.classList.remove('invalid');
+            return true;
+        }
+        
+        const fromDate = new Date(fromValue);
+        fromDate.setHours(0, 0, 0, 0);
+        const toDate = new Date(toValue);
+        toDate.setHours(0, 0, 0, 0);
+        
+        // Убираем предыдущие ошибки
+        dateFromInput.classList.remove('invalid');
+        dateToInput.classList.remove('invalid');
+        
+        // Проверка: дата "до" не может быть раньше "от"
+        if (toDate < fromDate) {
+            dateToInput.classList.add('invalid');
+            return false;
+        }
+        
+        return true;
+    }
+    
+    // Удаляем старые обработчики если они есть
+    dateFromInput.removeEventListener('change', updateDateToMin);
+    dateFromInput.removeEventListener('change', validateDates);
+    dateToInput.removeEventListener('change', validateDates);
+    
+    // Добавляем обработчики
+    dateFromInput.addEventListener('change', updateDateToMin);
+    dateFromInput.addEventListener('change', validateDates);
+    dateToInput.addEventListener('change', validateDates);
+    
+    // Инициализация при открытии модального окна
+    updateDateToMin();
+}
+
+function applyCustomPeriod(dateFrom, dateTo) {
+    // Валидация дат
+    const fromDate = new Date(dateFrom);
+    fromDate.setHours(0, 0, 0, 0);
+    const toDate = new Date(dateTo);
+    toDate.setHours(0, 0, 0, 0);
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+    
+    if (toDate < fromDate) {
+        showToast('Дата "до" не может быть раньше даты "от"');
+        document.getElementById('periodDateFrom').classList.add('invalid');
+        document.getElementById('periodDateTo').classList.add('invalid');
+        return false;
+    }
+    
+    if (toDate > today) {
+        showToast('Дата "до" не может быть позже сегодняшнего дня');
+        document.getElementById('periodDateTo').classList.add('invalid');
+        return false;
+    }
+    
+    // Сохранить кастомный период
+    customStartDate = new Date(fromDate);
+    customStartDate.setHours(0, 0, 0, 0);
+    customEndDate = new Date(toDate);
+    customEndDate.setHours(23, 59, 59, 999);
+    
+    // Установить период как custom
+    currentPeriod = 'custom';
+    document.querySelectorAll('.period-tab').forEach(tab => {
+        tab.classList.remove('active');
+        if (tab.dataset.period === 'custom') {
+            tab.classList.add('active');
+        }
+    });
+    
+    updateDateDisplay();
+    closeModal('customPeriodModal');
+    return true;
 }
 
 async function loadUserInfo() {
@@ -1226,6 +1658,213 @@ async function handleAddCategorySubmit(e) {
     }
 }
 
+function handleCustomPeriodSubmit(e) {
+    e.preventDefault();
+    
+    const form = e.target;
+    if (!validateForm(form)) return;
+    
+    const dateFrom = document.getElementById('periodDateFrom').value;
+    const dateTo = document.getElementById('periodDateTo').value;
+    
+    if (!dateFrom || !dateTo) {
+        showToast('Выберите обе даты');
+        return;
+    }
+    
+    applyCustomPeriod(dateFrom, dateTo);
+}
+
+function openPeriodSelector() {
+    switch (currentPeriod) {
+        case 'day':
+            openDaySelector();
+            break;
+        case 'week':
+            openWeekSelector();
+            break;
+        case 'month':
+            openMonthSelector();
+            break;
+        case 'year':
+            openYearSelector();
+            break;
+        case 'custom':
+            openCustomPeriodModal();
+            break;
+    }
+}
+
+function openDaySelector() {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const maxDate = today.toISOString().split('T')[0];
+    
+    const dateInput = document.getElementById('daySelectorDate');
+    dateInput.setAttribute('max', maxDate);
+    
+    // Установить текущую дату из периода
+    updatePeriodDates();
+    if (periodStartDate) {
+        const currentDateStr = formatDateForInput(periodStartDate);
+        dateInput.value = currentDateStr <= maxDate ? currentDateStr : maxDate;
+    } else {
+        dateInput.value = maxDate;
+    }
+    
+    openModal('daySelectorModal');
+}
+
+function openWeekSelector() {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const maxDate = today.toISOString().split('T')[0];
+    
+    const dateInput = document.getElementById('weekSelectorDate');
+    dateInput.setAttribute('max', maxDate);
+    
+    // Установить текущую дату из периода (любая дата в неделе)
+    updatePeriodDates();
+    if (periodStartDate) {
+        const currentDateStr = formatDateForInput(periodStartDate);
+        dateInput.value = currentDateStr <= maxDate ? currentDateStr : maxDate;
+    } else {
+        dateInput.value = maxDate;
+    }
+    
+    openModal('weekSelectorModal');
+}
+
+function openMonthSelector() {
+    const today = new Date();
+    const maxMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+    
+    const monthInput = document.getElementById('monthSelectorDate');
+    monthInput.setAttribute('max', maxMonth);
+    
+    // Установить текущий месяц из периода
+    updatePeriodDates();
+    if (periodStartDate) {
+        const year = periodStartDate.getFullYear();
+        const month = String(periodStartDate.getMonth() + 1).padStart(2, '0');
+        const currentMonth = `${year}-${month}`;
+        monthInput.value = currentMonth <= maxMonth ? currentMonth : maxMonth;
+    } else {
+        monthInput.value = maxMonth;
+    }
+    
+    openModal('monthSelectorModal');
+}
+
+function openYearSelector() {
+    const today = new Date();
+    const currentYear = today.getFullYear();
+    const startYear = 2000; // Начальный год для выбора
+    const endYear = currentYear;
+    
+    const yearSelect = document.getElementById('yearSelectorDate');
+    
+    // Заполнить select годами
+    yearSelect.innerHTML = '';
+    for (let year = endYear; year >= startYear; year--) {
+        const option = document.createElement('option');
+        option.value = year;
+        option.textContent = year;
+        yearSelect.appendChild(option);
+    }
+    
+    // Установить текущий год из периода
+    updatePeriodDates();
+    if (periodStartDate) {
+        const selectedYear = periodStartDate.getFullYear();
+        yearSelect.value = selectedYear <= currentYear ? selectedYear : currentYear;
+    } else {
+        yearSelect.value = currentYear;
+    }
+    
+    openModal('yearSelectorModal');
+}
+
+function formatDateForInput(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+function handleDaySelectorSubmit(e) {
+    e.preventDefault();
+    
+    const form = e.target;
+    if (!validateForm(form)) return;
+    
+    const selectedDate = document.getElementById('daySelectorDate').value;
+    if (!selectedDate) {
+        showToast('Выберите дату');
+        return;
+    }
+    
+    // Установить выбранную дату
+    currentDate = new Date(selectedDate);
+    updateDateDisplay();
+    closeModal('daySelectorModal');
+}
+
+function handleWeekSelectorSubmit(e) {
+    e.preventDefault();
+    
+    const form = e.target;
+    if (!validateForm(form)) return;
+    
+    const selectedDate = document.getElementById('weekSelectorDate').value;
+    if (!selectedDate) {
+        showToast('Выберите дату');
+        return;
+    }
+    
+    // Установить выбранную дату (неделя будет вычислена автоматически)
+    currentDate = new Date(selectedDate);
+    updateDateDisplay();
+    closeModal('weekSelectorModal');
+}
+
+function handleMonthSelectorSubmit(e) {
+    e.preventDefault();
+    
+    const form = e.target;
+    if (!validateForm(form)) return;
+    
+    const selectedMonth = document.getElementById('monthSelectorDate').value;
+    if (!selectedMonth) {
+        showToast('Выберите месяц');
+        return;
+    }
+    
+    // Установить первый день выбранного месяца
+    const [year, month] = selectedMonth.split('-');
+    currentDate = new Date(parseInt(year), parseInt(month) - 1, 1);
+    updateDateDisplay();
+    closeModal('monthSelectorModal');
+}
+
+function handleYearSelectorSubmit(e) {
+    e.preventDefault();
+    
+    const form = e.target;
+    if (!validateForm(form)) return;
+    
+    const selectedYear = parseInt(document.getElementById('yearSelectorDate').value);
+    if (!selectedYear || isNaN(selectedYear)) {
+        showToast('Выберите год');
+        return;
+    }
+    
+    // Установить первый день выбранного года
+    currentDate = new Date(selectedYear, 0, 1);
+    updateDateDisplay();
+    closeModal('yearSelectorModal');
+}
+
 function openModal(modalId) {
     const modal = document.getElementById(modalId);
     modal.classList.add('show');
@@ -1261,9 +1900,19 @@ function setupAddTransactionButton() {
             form.querySelectorAll('.form-input').forEach(field => {
                 field.classList.remove('invalid');
             });
-            const today = new Date().toISOString().split('T')[0];
-            document.getElementById('transactionDate').value = today;
-            document.getElementById('transactionDate').setAttribute('max', today);
+            // Установить дату из выбранного периода (самая левая дата диапазона)
+            const transactionDate = getTransactionDate();
+            const maxDate = new Date();
+            maxDate.setHours(0, 0, 0, 0);
+            
+            // Форматируем дату для избежания проблем с часовыми поясами
+            const maxDateStr = formatDateForInput(maxDate);
+            const periodDateStr = formatDateForInput(transactionDate);
+            
+            // Использовать дату из периода, но не больше сегодняшнего дня
+            const dateToSet = periodDateStr <= maxDateStr ? periodDateStr : maxDateStr;
+            document.getElementById('transactionDate').value = dateToSet;
+            document.getElementById('transactionDate').setAttribute('max', maxDateStr);
             selectedCategoryId = null;
             document.querySelectorAll('#categoriesGrid .category-button').forEach(btn => btn.classList.remove('active'));
             

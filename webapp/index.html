@@ -61,6 +61,21 @@
                     <button class="type-button" data-type="income">Доходы</button>
                 </div>
 
+                <!-- Period Selector -->
+                <div class="period-selector">
+                    <div class="period-tabs">
+                        <button class="period-tab" data-period="day">День</button>
+                        <button class="period-tab active" data-period="week">Неделя</button>
+                        <button class="period-tab" data-period="month">Месяц</button>
+                        <button class="period-tab" data-period="year">Год</button>
+                        <button class="period-tab" data-period="custom">Период</button>
+                    </div>
+                    <div class="date-navigation">
+                        <button class="date-nav-btn" id="dateNavPrev">←</button>
+                        <div class="date-display clickable" id="dateRangeDisplay" style="cursor: pointer;"></div>
+                        <button class="date-nav-btn" id="dateNavNext">→</button>
+                    </div>
+                </div>
 
                 <!-- Summary Card -->
                 <div class="summary-card">
@@ -338,6 +353,96 @@
                 <button type="button" class="action-button" onclick="closeModal('confirmationModal')" style="background: #e0e0e0; color: #333; flex: 1;">Отмена</button>
                 <button type="button" class="delete-button" id="confirmDeleteBtn" style="margin-top: 0; flex: 1;">Удалить</button>
             </div>
+        </div>
+    </div>
+
+    <!-- Day Selector Modal -->
+    <div class="modal" id="daySelectorModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Выберите день</h2>
+                <button class="close-button" onclick="closeModal('daySelectorModal')">×</button>
+            </div>
+            <form id="daySelectorForm" novalidate>
+                <div class="form-group">
+                    <label class="form-label">Дата</label>
+                    <input type="date" class="form-input" id="daySelectorDate" max="" required>
+                </div>
+                <button type="submit" class="submit-button">Применить</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Week Selector Modal -->
+    <div class="modal" id="weekSelectorModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Выберите неделю</h2>
+                <button class="close-button" onclick="closeModal('weekSelectorModal')">×</button>
+            </div>
+            <form id="weekSelectorForm" novalidate>
+                <div class="form-group">
+                    <label class="form-label">Дата в неделе</label>
+                    <input type="date" class="form-input" id="weekSelectorDate" max="" required>
+                </div>
+                <button type="submit" class="submit-button">Применить</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Month Selector Modal -->
+    <div class="modal" id="monthSelectorModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Выберите месяц</h2>
+                <button class="close-button" onclick="closeModal('monthSelectorModal')">×</button>
+            </div>
+            <form id="monthSelectorForm" novalidate>
+                <div class="form-group">
+                    <label class="form-label">Месяц</label>
+                    <input type="month" class="form-input" id="monthSelectorDate" max="" required>
+                </div>
+                <button type="submit" class="submit-button">Применить</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Year Selector Modal -->
+    <div class="modal" id="yearSelectorModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Выберите год</h2>
+                <button class="close-button" onclick="closeModal('yearSelectorModal')">×</button>
+            </div>
+            <form id="yearSelectorForm" novalidate>
+                <div class="form-group">
+                    <label class="form-label">Год</label>
+                    <select class="form-input" id="yearSelectorDate" required style="appearance: auto; -webkit-appearance: menulist; -moz-appearance: menulist;">
+                    </select>
+                </div>
+                <button type="submit" class="submit-button">Применить</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Custom Period Modal -->
+    <div class="modal" id="customPeriodModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Выберите период</h2>
+                <button class="close-button" onclick="closeModal('customPeriodModal')">×</button>
+            </div>
+            <form id="customPeriodForm" novalidate>
+                <div class="form-group">
+                    <label class="form-label">Дата от</label>
+                    <input type="date" class="form-input" id="periodDateFrom" max="" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Дата до</label>
+                    <input type="date" class="form-input" id="periodDateTo" max="" required>
+                </div>
+                <button type="submit" class="submit-button">Применить</button>
+            </form>
         </div>
     </div>
 
