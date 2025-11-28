@@ -2,23 +2,29 @@
 
 # Скрипт для запуска HTTPS туннеля через cloudflared (не требует регистрации)
 
-echo "🚀 Запуск cloudflared туннеля..."
-echo ""
-echo "Ожидайте, пока появится HTTPS URL..."
-echo "После запуска скопируйте HTTPS URL и добавьте /webapp в конец"
-echo ""
-
 # Проверяем наличие cloudflared
 if [ ! -f "./cloudflared" ]; then
-    echo "❌ cloudflared не найден. Устанавливаю..."
-    wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -O cloudflared
+    wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -O cloudflared 2>/dev/null
     chmod +x cloudflared
-    echo "✅ cloudflared установлен"
 fi
 
-# Запускаем cloudflared
-./cloudflared tunnel --url http://localhost:8080
+# Временный файл для отслеживания
+flag_file="/tmp/cloudflared_url_printed_$$"
 
+# Запускаем cloudflared и фильтруем вывод
+./cloudflared tunnel --url http://localhost:8080 2>&1 | while IFS= read -r line; do
+    if [ ! -f "$flag_file" ]; then
+        url=$(echo "$line" | grep -oE 'https://[a-zA-Z0-9-]+\.trycloudflare\.com' | head -1)
+        if [ -n "$url" ]; then
+            echo "${url}/webapp"
+            touch "$flag_file"
+        fi
+    fi
+done
 
+# Удаляем временный файл при завершении
+rm -f "$flag_file"
+
+    
 
 
