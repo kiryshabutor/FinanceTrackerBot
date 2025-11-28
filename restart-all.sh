@@ -24,3 +24,5 @@ echo ""
 # Запускаем cloudflared через существующий скрипт
 bash ./start-cloudflared.sh
 
+
+
