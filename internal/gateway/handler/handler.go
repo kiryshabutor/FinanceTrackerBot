@@ -457,11 +457,12 @@ func (h *Handler) CreateCategory(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) CreateExpense(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		TelegramID  int64  `json:"telegram_id"`
-		AccountID   int64  `json:"account_id"`
-		Amount      string `json:"amount"`
-		CategoryID  int64  `json:"category_id"`
-		Description string `json:"description"`
+		TelegramID   int64  `json:"telegram_id"`
+		AccountID    int64  `json:"account_id"`
+		Amount       string `json:"amount"`
+		CategoryID   int64  `json:"category_id"`
+		Description  string `json:"description"`
+		OperationDate string `json:"operation_date"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -475,6 +476,12 @@ func (h *Handler) CreateExpense(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Использовать переданную дату или текущую дату
+	operationDate := req.OperationDate
+	if operationDate == "" {
+		operationDate = time.Now().Format(time.RFC3339)
+	}
+
 	ctx := r.Context()
 	resp, err := h.clients.Ledger.CreateExpense(ctx, &pbLedger.CreateExpenseRequest{
 		UserId:       userID,
@@ -482,7 +489,7 @@ func (h *Handler) CreateExpense(w http.ResponseWriter, r *http.Request) {
 		Amount:       req.Amount,
 		CategoryId:   req.CategoryID,
 		Description: req.Description,
-		OperationDate: time.Now().Format(time.RFC3339),
+		OperationDate: operationDate,
 	})
 	if err != nil {
 		h.logger.Error("failed to create expense", zap.Error(err))
@@ -503,11 +510,12 @@ func (h *Handler) CreateExpense(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) CreateIncome(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		TelegramID  int64  `json:"telegram_id"`
-		AccountID   int64  `json:"account_id"`
-		Amount      string `json:"amount"`
-		CategoryID  int64  `json:"category_id"`
-		Description string `json:"description"`
+		TelegramID   int64  `json:"telegram_id"`
+		AccountID    int64  `json:"account_id"`
+		Amount       string `json:"amount"`
+		CategoryID   int64  `json:"category_id"`
+		Description  string `json:"description"`
+		OperationDate string `json:"operation_date"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -521,6 +529,12 @@ func (h *Handler) CreateIncome(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Использовать переданную дату или текущую дату
+	operationDate := req.OperationDate
+	if operationDate == "" {
+		operationDate = time.Now().Format(time.RFC3339)
+	}
+
 	ctx := r.Context()
 	resp, err := h.clients.Ledger.CreateIncome(ctx, &pbLedger.CreateIncomeRequest{
 		UserId:       userID,
@@ -528,7 +542,7 @@ func (h *Handler) CreateIncome(w http.ResponseWriter, r *http.Request) {
 		Amount:       req.Amount,
 		CategoryId:   req.CategoryID,
 		Description: req.Description,
-		OperationDate: time.Now().Format(time.RFC3339),
+		OperationDate: operationDate,
 	})
 	if err != nil {
 		h.logger.Error("failed to create income", zap.Error(err))
@@ -554,6 +568,7 @@ func (h *Handler) CreateTransfer(w http.ResponseWriter, r *http.Request) {
 		ToAccountID   int64  `json:"to_account_id"`
 		Amount        string `json:"amount"`
 		Description   string `json:"description"`
+		OperationDate string `json:"operation_date"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -572,6 +587,12 @@ func (h *Handler) CreateTransfer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Использовать переданную дату или текущую дату
+	operationDate := req.OperationDate
+	if operationDate == "" {
+		operationDate = time.Now().Format(time.RFC3339)
+	}
+
 	ctx := r.Context()
 	resp, err := h.clients.Ledger.CreateTransfer(ctx, &pbLedger.CreateTransferRequest{
 		UserId:        userID,
@@ -579,7 +600,7 @@ func (h *Handler) CreateTransfer(w http.ResponseWriter, r *http.Request) {
 		ToAccountId:   req.ToAccountID,
 		Amount:        req.Amount,
 		Description:   req.Description,
-		OperationDate: time.Now().Format(time.RFC3339),
+		OperationDate: operationDate,
 	})
 	if err != nil {
 		h.logger.Error("failed to create transfer", zap.Error(err))
