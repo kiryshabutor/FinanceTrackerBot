@@ -38,6 +38,7 @@
             <!-- Header -->
             <div class="header">
                 <button class="menu-button" id="menuButton">☰</button>
+                <button class="back-button" id="backButton" onclick="goBackToCategories()" style="display: none;">←</button>
                 <h1 class="header-title" id="pageTitle">Главная</h1>
                 <div style="width: 40px;"></div>
             </div>
@@ -64,8 +65,8 @@
                 <!-- Period Selector -->
                 <div class="period-selector">
                     <div class="period-tabs">
-                        <button class="period-tab" data-period="day">День</button>
-                        <button class="period-tab active" data-period="week">Неделя</button>
+                        <button class="period-tab active" data-period="day">День</button>
+                        <button class="period-tab" data-period="week">Неделя</button>
                         <button class="period-tab" data-period="month">Месяц</button>
                         <button class="period-tab" data-period="year">Год</button>
                         <button class="period-tab" data-period="custom">Период</button>
@@ -90,6 +91,16 @@
 
                 <!-- Add Transaction Button -->
                 <button class="submit-button" id="addTransactionBtn" style="margin-top: 20px;">+ Добавить транзакцию</button>
+            </div>
+
+            <!-- Category Transactions Tab -->
+            <div class="tab-content" id="categoryTransactionsTab">
+                
+                <ul class="transactions-list" id="categoryTransactionsList">
+                    <li class="loading">Загрузка...</li>
+                </ul>
+
+                <button class="submit-button" id="addCategoryTransactionBtn" style="margin-top: 20px;">+ Добавить транзакцию</button>
             </div>
 
             <!-- Accounts Tab -->
@@ -121,10 +132,15 @@
     <div class="modal" id="transactionModal">
         <div class="modal-content modal-fullscreen">
             <div class="modal-header">
-                <h2 class="modal-title" id="transactionModalTitle">Добавить транзакцию</h2>
+                <h2 class="modal-title" id="transactionModalTitle">Добавить</h2>
                 <button class="close-button" onclick="closeModal('transactionModal')">×</button>
             </div>
             <form id="transactionForm" novalidate>
+                <!-- Transaction Type Selector -->
+                <div class="type-selector" style="margin-bottom: var(--spacing-lg);">
+                    <button type="button" class="type-button active" id="modalTransactionTypeExpense" data-type="expense">Расход</button>
+                    <button type="button" class="type-button" id="modalTransactionTypeIncome" data-type="income">Доход</button>
+                </div>
                 <div class="form-group">
                     <label class="form-label">Сумма</label>
                     <input type="text" class="form-input" id="transactionAmount" placeholder="0.00" inputmode="decimal" required>

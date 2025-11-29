@@ -14,6 +14,7 @@ if (!telegramId) {
 // State
 let currentTab = 'home';
 let currentType = 'expense';
+let modalTransactionType = 'expense'; // Тип транзакции в модальном окне
 let currentPeriod = 'day';
 let currentDate = new Date();
 let periodStartDate = null;
@@ -25,6 +26,7 @@ let categories = [];
 let editingTransactionId = null;
 let editingAccountId = null;
 let selectedCategoryId = null;
+let selectedCategoryName = null; // Выбранная категория для просмотра транзакций
 
 // Utility functions
 function normalizeAmount(value) {
@@ -344,10 +346,12 @@ document.addEventListener('DOMContentLoaded', () => {
     setupFieldValidation();
     setupEventListeners();
     setupAddTransactionButton();
+    setupAddCategoryTransactionButton();
     
-    // Инициализация периода
+    // Инициализация периода - по умолчанию "День" (сегодня)
     currentDate = new Date();
-    currentPeriod = 'week';
+    currentDate.setHours(0, 0, 0, 0); // Установить на начало дня
+    currentPeriod = 'day';
     // Установить активную вкладку периода
     document.querySelectorAll('.period-tab').forEach(tab => {
         tab.classList.remove('active');
@@ -380,6 +384,7 @@ function setupEventListeners() {
     document.querySelectorAll('.type-button').forEach(btn => {
         btn.addEventListener('click', (e) => {
             currentType = e.currentTarget.dataset.type;
+            selectedCategoryName = null; // Сбрасываем выбранную категорию
             document.querySelectorAll('.type-button').forEach(b => b.classList.remove('active'));
             e.currentTarget.classList.add('active');
             loadCategories(currentType);
@@ -412,6 +417,16 @@ function setupEventListeners() {
     // Balance account selector
     document.getElementById('balanceAccountSelect').addEventListener('change', () => {
         loadBalance();
+    });
+
+    // Modal transaction type selector
+    document.getElementById('modalTransactionTypeExpense')?.addEventListener('click', () => {
+        modalTransactionType = 'expense';
+        updateModalTransactionType();
+    });
+    document.getElementById('modalTransactionTypeIncome')?.addEventListener('click', () => {
+        modalTransactionType = 'income';
+        updateModalTransactionType();
     });
 
     // Forms
@@ -547,9 +562,20 @@ function switchTab(tab) {
     document.querySelectorAll('.menu-link').forEach(l => l.classList.remove('active'));
 
     document.getElementById(`${tab}Tab`).classList.add('active');
-    document.querySelector(`.menu-link[data-tab="${tab}"]`).classList.add('active');
+    const menuLink = document.querySelector(`.menu-link[data-tab="${tab}"]`);
+    if (menuLink) {
+        menuLink.classList.add('active');
+    }
 
-    document.getElementById('pageTitle').textContent = tab === 'home' ? 'Главная' : 'Счета';
+    if (tab === 'categoryTransactions') {
+        document.getElementById('pageTitle').textContent = selectedCategoryName || 'Категория';
+        document.getElementById('menuButton').style.display = 'none';
+        document.getElementById('backButton').style.display = 'block';
+    } else {
+        document.getElementById('pageTitle').textContent = tab === 'home' ? 'Главная' : 'Счета';
+        document.getElementById('menuButton').style.display = 'block';
+        document.getElementById('backButton').style.display = 'none';
+    }
 
     if (tab === 'home') {
         loadHomeData();
@@ -811,6 +837,9 @@ function navigatePeriod(direction) {
     currentDate = newDate;
     updateDateDisplay();
     
+    // Сбросить выбранную категорию при навигации по периоду
+    selectedCategoryName = null;
+    
     // Перезагрузить данные при навигации по периоду
     if (currentTab === 'home') {
         loadHomeData();
@@ -842,6 +871,9 @@ function selectPeriod(period) {
         }
     });
     updateDateDisplay();
+    
+    // Сбросить выбранную категорию при смене периода
+    selectedCategoryName = null;
     
     // Перезагрузить данные при изменении периода
     if (currentTab === 'home') {
@@ -998,6 +1030,9 @@ function applyCustomPeriod(dateFrom, dateTo) {
     
     updateDateDisplay();
     closeModal('customPeriodModal');
+    
+    // Сбросить выбранную категорию
+    selectedCategoryName = null;
     
     // Перезагрузить данные при применении кастомного периода
     if (currentTab === 'home') {
@@ -1161,16 +1196,20 @@ function selectCategoryFromAll(categoryId) {
 }
 
 async function loadHomeData() {
-    await loadTransactions();
     await loadSummary();
+    if (selectedCategoryName) {
+        await loadTransactions(selectedCategoryName);
+    } else {
+        await loadCategoriesWithStats();
+    }
 }
 
-async function loadTransactions() {
+async function loadTransactions(categoryName = null) {
     try {
         const periodParams = getPeriodApiParams();
         const params = {
             telegram_id: telegramId,
-            limit: 100,
+            limit: 1000,
             period: periodParams.period
         };
         
@@ -1185,7 +1224,12 @@ async function loadTransactions() {
 
         const response = await fetch(url);
         const data = await response.json();
-        const transactions = (data.transactions || []).filter(tx => tx.type === currentType);
+        let transactions = (data.transactions || []).filter(tx => tx.type === currentType);
+        
+        // Фильтруем по категории, если указана
+        if (categoryName) {
+            transactions = transactions.filter(tx => tx.category_name === categoryName);
+        }
 
         const list = document.getElementById('transactionsList');
         if (transactions.length === 0) {
@@ -1208,6 +1252,132 @@ async function loadTransactions() {
     } catch (error) {
         console.error('Error loading transactions:', error);
         document.getElementById('transactionsList').innerHTML = '<li class="empty-state">Ошибка при загрузке транзакций</li>';
+    }
+}
+
+async function loadCategoriesWithStats() {
+    try {
+        const periodParams = getPeriodApiParams();
+        const params = {
+            telegram_id: telegramId,
+            limit: 1000,
+            period: periodParams.period
+        };
+        
+        if (periodParams.startDate) {
+            params.start_date = periodParams.startDate;
+        }
+        if (periodParams.endDate) {
+            params.end_date = periodParams.endDate;
+        }
+        
+        const url = buildApiUrl('/api/transactions', params);
+
+        const response = await fetch(url);
+        const data = await response.json();
+        const transactions = (data.transactions || []).filter(tx => tx.type === currentType);
+        
+        // Группируем транзакции по категориям и суммируем
+        const categoryStats = {};
+        transactions.forEach(tx => {
+            const categoryName = tx.category_name || 'Без категории';
+            if (!categoryStats[categoryName]) {
+                categoryStats[categoryName] = {
+                    name: categoryName,
+                    total: 0,
+                    count: 0
+                };
+            }
+            categoryStats[categoryName].total += parseFloat(tx.amount || 0);
+            categoryStats[categoryName].count += 1;
+        });
+        
+        // Преобразуем в массив и сортируем по сумме (по убыванию)
+        const categoriesArray = Object.values(categoryStats).sort((a, b) => b.total - a.total);
+        
+        const list = document.getElementById('transactionsList');
+        if (categoriesArray.length === 0) {
+            list.innerHTML = '<li class="empty-state"><div class="empty-state-icon">📁</div><div>Нет транзакций</div></li>';
+        } else {
+            list.innerHTML = categoriesArray.map(cat => {
+                const escapedName = cat.name.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                const htmlEscapedName = cat.name.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                return `
+                <li class="transaction-item" onclick="showCategoryTransactions('${escapedName}')">
+                    <div class="transaction-header">
+                        <span class="transaction-category">${htmlEscapedName}</span>
+                        <span class="transaction-amount ${currentType}">${currentType === 'expense' ? '-' : '+'}${formatAmount(cat.total)} ₽</span>
+                    </div>
+                    <div class="transaction-details">
+                        <span>${cat.count} ${cat.count === 1 ? 'транзакция' : cat.count < 5 ? 'транзакции' : 'транзакций'}</span>
+                    </div>
+                </li>
+            `;
+            }).join('');
+        }
+    } catch (error) {
+        console.error('Error loading categories with stats:', error);
+        document.getElementById('transactionsList').innerHTML = '<li class="empty-state">Ошибка при загрузке категорий</li>';
+    }
+}
+
+function showCategoryTransactions(categoryName) {
+    selectedCategoryName = categoryName;
+    switchTab('categoryTransactions');
+    loadCategoryTransactions(categoryName);
+}
+
+function goBackToCategories() {
+    selectedCategoryName = null;
+    switchTab('home');
+}
+
+async function loadCategoryTransactions(categoryName) {
+    try {
+        const periodParams = getPeriodApiParams();
+        const params = {
+            telegram_id: telegramId,
+            limit: 1000,
+            period: periodParams.period
+        };
+        
+        if (periodParams.startDate) {
+            params.start_date = periodParams.startDate;
+        }
+        if (periodParams.endDate) {
+            params.end_date = periodParams.endDate;
+        }
+        
+        const url = buildApiUrl('/api/transactions', params);
+
+        const response = await fetch(url);
+        const data = await response.json();
+        let transactions = (data.transactions || []).filter(tx => tx.type === currentType);
+        
+        // Фильтруем по категории
+        transactions = transactions.filter(tx => tx.category_name === categoryName);
+
+        const list = document.getElementById('categoryTransactionsList');
+        if (transactions.length === 0) {
+            list.innerHTML = '<li class="empty-state"><div class="empty-state-icon">📝</div><div>Нет транзакций в этой категории</div></li>';
+        } else {
+            list.innerHTML = transactions.map(tx => `
+                <li class="transaction-item" onclick="openTransactionEdit(${tx.id})">
+                    <div class="transaction-header">
+                        <span class="transaction-category">${tx.category_name || 'Без категории'}</span>
+                        <span class="transaction-amount ${tx.type}">${tx.type === 'expense' ? '-' : '+'}${formatAmount(tx.amount)} ${tx.currency}</span>
+                    </div>
+                    <div class="transaction-details">
+                        <span>${tx.account_name}</span>
+                        <span>${formatDate(new Date(tx.operation_date))}</span>
+                    </div>
+                    ${tx.description ? `<div style="margin-top: 5px; font-size: 12px; opacity: 0.7;">${tx.description}</div>` : ''}
+                </li>
+            `).join('');
+        }
+    } catch (error) {
+        console.error('Error loading category transactions:', error);
+        document.getElementById('categoryTransactionsList').innerHTML = '<li class="empty-state">Ошибка при загрузке транзакций</li>';
     }
 }
 
@@ -1269,7 +1439,7 @@ async function handleTransactionSubmit(e) {
     // Форматируем дату для отправки в API (начало дня в локальном времени)
     const operationDate = formatDateForApi(date);
 
-    const endpoint = currentType === 'expense' ? 
+    const endpoint = modalTransactionType === 'expense' ? 
         `${gatewayUrl}/api/transactions/expense` : 
         `${gatewayUrl}/api/transactions/income`;
 
@@ -1902,6 +2072,9 @@ function handleDaySelectorSubmit(e) {
     updateDateDisplay();
     closeModal('daySelectorModal');
     
+    // Сбросить выбранную категорию
+    selectedCategoryName = null;
+    
     // Перезагрузить данные
     if (currentTab === 'home') {
         loadHomeData();
@@ -1924,6 +2097,9 @@ function handleWeekSelectorSubmit(e) {
     currentDate = new Date(selectedDate);
     updateDateDisplay();
     closeModal('weekSelectorModal');
+    
+    // Сбросить выбранную категорию
+    selectedCategoryName = null;
     
     // Перезагрузить данные
     if (currentTab === 'home') {
@@ -1949,6 +2125,9 @@ function handleMonthSelectorSubmit(e) {
     updateDateDisplay();
     closeModal('monthSelectorModal');
     
+    // Сбросить выбранную категорию
+    selectedCategoryName = null;
+    
     // Перезагрузить данные
     if (currentTab === 'home') {
         loadHomeData();
@@ -1971,6 +2150,9 @@ function handleYearSelectorSubmit(e) {
     currentDate = new Date(selectedYear, 0, 1);
     updateDateDisplay();
     closeModal('yearSelectorModal');
+    
+    // Сбросить выбранную категорию
+    selectedCategoryName = null;
     
     // Перезагрузить данные
     if (currentTab === 'home') {
@@ -2000,46 +2182,102 @@ function formatAmount(amount) {
     return num.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+// Обновить состояние переключателя типа транзакции в модальном окне
+function updateModalTransactionType() {
+    // Обновить активные кнопки
+    document.querySelectorAll('#transactionModal .type-button').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.dataset.type === modalTransactionType) {
+            btn.classList.add('active');
+        }
+    });
+    
+    // Загрузить категории для нового типа
+    loadCategories(modalTransactionType);
+    
+    // Сбросить выбранную категорию
+    selectedCategoryId = null;
+    document.querySelectorAll('#categoriesGrid .category-button').forEach(btn => btn.classList.remove('active'));
+}
+
 // Setup add transaction button
 function setupAddTransactionButton() {
     const addButton = document.getElementById('addTransactionBtn');
     if (addButton) {
         addButton.addEventListener('click', () => {
-            document.getElementById('transactionModalTitle').textContent = 
-                currentType === 'expense' ? 'Добавить расход' : 'Добавить доход';
-            const form = document.getElementById('transactionForm');
-            form.reset();
-            // Remove invalid classes when opening modal
-            form.querySelectorAll('.form-input').forEach(field => {
-                field.classList.remove('invalid');
-            });
-            // Установить дату из выбранного периода (самая левая дата диапазона)
-            const transactionDate = getTransactionDate();
-            const maxDate = new Date();
-            maxDate.setHours(0, 0, 0, 0);
-            
-            // Форматируем дату для избежания проблем с часовыми поясами
-            const maxDateStr = formatDateForInput(maxDate);
-            const periodDateStr = formatDateForInput(transactionDate);
-            
-            // Использовать дату из периода, но не больше сегодняшнего дня
-            const dateToSet = periodDateStr <= maxDateStr ? periodDateStr : maxDateStr;
-            document.getElementById('transactionDate').value = dateToSet;
-            document.getElementById('transactionDate').setAttribute('max', maxDateStr);
-            selectedCategoryId = null;
-            document.querySelectorAll('#categoriesGrid .category-button').forEach(btn => btn.classList.remove('active'));
-            
-            // Заполнить select счетами
-            const accountSelect = document.getElementById('transactionAccount');
-            accountSelect.innerHTML = '<option value="">Выберите счет</option>';
-            accounts.forEach(acc => {
-                const option = document.createElement('option');
-                option.value = acc.id;
-                option.textContent = `${acc.name} (${formatAmount(acc.balance)} ${acc.currency})`;
-                accountSelect.appendChild(option);
-            });
-            
-            openModal('transactionModal');
+            openTransactionModalWithCategory(null);
         });
     }
+}
+
+function setupAddCategoryTransactionButton() {
+    const addButton = document.getElementById('addCategoryTransactionBtn');
+    if (addButton) {
+        addButton.addEventListener('click', () => {
+            openTransactionModalWithCategory(selectedCategoryName);
+        });
+    }
+}
+
+function openTransactionModalWithCategory(categoryName) {
+    // Установить тип транзакции в модальном окне из текущего типа на главном экране
+    modalTransactionType = currentType;
+    updateModalTransactionType();
+    
+    const form = document.getElementById('transactionForm');
+    form.reset();
+    // Remove invalid classes when opening modal
+    form.querySelectorAll('.form-input').forEach(field => {
+        field.classList.remove('invalid');
+    });
+    // Установить дату из выбранного периода (самая левая дата диапазона)
+    const transactionDate = getTransactionDate();
+    const maxDate = new Date();
+    maxDate.setHours(0, 0, 0, 0);
+    
+    // Форматируем дату для избежания проблем с часовыми поясами
+    const maxDateStr = formatDateForInput(maxDate);
+    const periodDateStr = formatDateForInput(transactionDate);
+    
+    // Использовать дату из периода, но не больше сегодняшнего дня
+    const dateToSet = periodDateStr <= maxDateStr ? periodDateStr : maxDateStr;
+    document.getElementById('transactionDate').value = dateToSet;
+    document.getElementById('transactionDate').setAttribute('max', maxDateStr);
+    
+    // Заполнить select счетами
+    const accountSelect = document.getElementById('transactionAccount');
+    accountSelect.innerHTML = '<option value="">Выберите счет</option>';
+    accounts.forEach(acc => {
+        const option = document.createElement('option');
+        option.value = acc.id;
+        option.textContent = `${acc.name} (${formatAmount(acc.balance)} ${acc.currency})`;
+        accountSelect.appendChild(option);
+    });
+    
+    // Автоматически выбрать категорию, если указана
+    selectedCategoryId = null;
+    document.querySelectorAll('#categoriesGrid .category-button').forEach(btn => btn.classList.remove('active'));
+    
+    if (categoryName) {
+        // Найти категорию по имени среди загруженных категорий
+        const category = categories.find(cat => cat.name === categoryName);
+        if (category) {
+            selectedCategoryId = category.id;
+            // Выделить кнопку категории после загрузки категорий
+            setTimeout(() => {
+                const categoryButton = document.querySelector(`#categoriesGrid .category-button[data-category-id="${category.id}"]`);
+                if (categoryButton) {
+                    categoryButton.classList.add('active');
+                } else {
+                    // Если категории нет в первых 7, попробуем найти в "Еще"
+                    const allCategoryButton = document.querySelector(`#allCategoriesGrid .category-button[data-category-id="${category.id}"]`);
+                    if (allCategoryButton) {
+                        selectCategoryFromAll(category.id);
+                    }
+                }
+            }, 200);
+        }
+    }
+    
+    openModal('transactionModal');
 }

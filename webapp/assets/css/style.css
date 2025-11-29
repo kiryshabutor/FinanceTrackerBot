@@ -184,6 +184,23 @@ body {
     outline: none;
 }
 
+.back-button {
+    background: none;
+    border: none;
+    font-size: 32px;
+    cursor: pointer;
+    padding: 8px;
+    color: #026E81;
+    -webkit-tap-highlight-color: transparent;
+    font-weight: 600;
+    width: 40px;
+}
+
+.back-button:focus,
+.back-button:active {
+    outline: none;
+}
+
 .header-title {
     font-size: 24px;
     font-weight: 600;
@@ -309,25 +326,25 @@ body {
     display: flex;
     gap: 3px;
     margin-bottom: 10px;
-    border-bottom: 2px solid rgba(2, 110, 129, 0.2);
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
+    position: relative;
 }
 
 .period-tab {
-    padding: 8px 10px;
+    padding: 10px 10px;
     background: none;
     border: none;
     color: var(--color-primary);
     font-size: 14px;
     cursor: pointer;
-    border-bottom: 2px solid transparent;
-    margin-bottom: -2px;
-    transition: border-color var(--transition);
+    border-bottom: none;
+    transition: background-color var(--transition), color var(--transition), font-weight var(--transition);
     white-space: nowrap;
     -webkit-tap-highlight-color: transparent;
     flex: 1;
     min-width: 0;
+    position: relative;
 }
 
 .period-tab:focus,
@@ -335,10 +352,17 @@ body {
     outline: none;
 }
 
-.period-tab.active {
-    border-bottom-color: var(--color-secondary);
-    font-weight: 600;
+.period-tab:hover:not(.active) {
     color: var(--color-secondary);
+    background: rgba(0, 171, 189, 0.05);
+}
+
+.period-tab.active {
+    border-bottom: none;
+    font-weight: 700;
+    color: var(--color-secondary);
+    background: linear-gradient(to bottom, rgba(0, 171, 189, 0.15), rgba(0, 171, 189, 0.08));
+    border-radius: var(--spacing-sm);
 }
 
 .date-navigation {
@@ -358,11 +382,12 @@ body {
     background: none;
     border: none;
     color: var(--color-primary);
-    font-size: 20px;
+    font-size: 28px;
     cursor: pointer;
-    padding: 5px 10px;
+    padding: 5px 15px;
     transition: opacity var(--transition);
     -webkit-tap-highlight-color: transparent;
+    font-weight: 600;
 }
 
 .date-nav-btn:focus,
@@ -645,11 +670,16 @@ body {
     margin-bottom: var(--spacing-lg);
 }
 
+#transactionModal .modal-header {
+    justify-content: space-between;
+}
+
 .modal-title {
     font-size: 20px;
     font-weight: 600;
     color: var(--color-primary);
 }
+
 
 .close-button {
     background: none;
