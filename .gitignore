@@ -1,49 +1,37 @@
-# Binaries
-*.exe
-*.exe~
-*.dll
-*.so
-*.dylib
-bin/
-dist/
+a# Запрещаем все файлы по умолчанию
+*
 
-# Test binary
-*.test
+# Разрешаем сам .gitignore
+!.gitignore
 
-# Output of the go coverage tool
-*.out
+# Разрешаем README
+!README.md
 
-# Dependency directories
-vendor/
+# Разрешаем конфигурационные файлы
+!go.mod
+!go.sum
+!docker-compose.yml
+!Makefile
 
-# Go workspace file
-go.work
+# Разрешаем скрипт start-cloudflared.sh
+!start-cloudflared.sh
 
-# Environment variables
-.env
-.env.local
+# Разрешаем исходный код
+!cmd/
+!cmd/**
+!internal/
+!internal/**
+!proto/
+!proto/**
 
-# IDE
-.idea/
-.vscode/
-*.swp
-*.swo
-*~
+# Разрешаем Docker файлы
+!docker/
+!docker/**
 
-# Build artifacts
-*.pb.go
-*.pb.gw.go
+# Разрешаем миграции БД
+!migrations/
+!migrations/**
 
-# Logs
-*.log
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Tunnel binaries
-ngrok
-cloudflared
-cloudflared.log
-cloudflared-linux-amd64
-
+# Разрешаем веб-приложение
+!webapp/
+!webapp/**
