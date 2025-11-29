@@ -750,6 +750,43 @@ function updatePeriodDates() {
     periodEndDate = dates.end;
 }
 
+function getPeriodApiParams() {
+    // Преобразуем текущий период в формат API
+    updatePeriodDates();
+    
+    // Для всех периодов используем "period" с конкретными датами
+    // чтобы получить точные данные за выбранный диапазон
+    let apiPeriod = 'period';
+    let startDate = null;
+    let endDate = null;
+    
+    if (periodStartDate && periodEndDate) {
+        // Форматируем даты в формат ISO для API
+        startDate = periodStartDate.toISOString();
+        endDate = periodEndDate.toISOString();
+    }
+    
+    return {
+        period: apiPeriod,
+        startDate: startDate,
+        endDate: endDate
+    };
+}
+
+function buildApiUrl(basePath, params = {}) {
+    // Формируем полный URL с параметрами
+    const baseUrl = gatewayUrl.endsWith('/') ? gatewayUrl.slice(0, -1) : gatewayUrl;
+    const path = basePath.startsWith('/') ? basePath : '/' + basePath;
+    const url = new URL(path, baseUrl);
+    
+    Object.keys(params).forEach(key => {
+        if (params[key] !== null && params[key] !== undefined && params[key] !== '') {
+            url.searchParams.set(key, params[key]);
+        }
+    });
+    return url.toString();
+}
+
 function navigatePeriod(direction) {
     const newDate = new Date(currentDate);
     
@@ -773,6 +810,11 @@ function navigatePeriod(direction) {
     
     currentDate = newDate;
     updateDateDisplay();
+    
+    // Перезагрузить данные при навигации по периоду
+    if (currentTab === 'home') {
+        loadHomeData();
+    }
 }
 
 function selectPeriod(period) {
@@ -800,6 +842,11 @@ function selectPeriod(period) {
         }
     });
     updateDateDisplay();
+    
+    // Перезагрузить данные при изменении периода
+    if (currentTab === 'home') {
+        loadHomeData();
+    }
 }
 
 function getTransactionDate() {
@@ -951,6 +998,12 @@ function applyCustomPeriod(dateFrom, dateTo) {
     
     updateDateDisplay();
     closeModal('customPeriodModal');
+    
+    // Перезагрузить данные при применении кастомного периода
+    if (currentTab === 'home') {
+        loadHomeData();
+    }
+    
     return true;
 }
 
@@ -1114,7 +1167,21 @@ async function loadHomeData() {
 
 async function loadTransactions() {
     try {
-        const url = `${gatewayUrl}/api/transactions?telegram_id=${telegramId}&limit=100`;
+        const periodParams = getPeriodApiParams();
+        const params = {
+            telegram_id: telegramId,
+            limit: 100,
+            period: periodParams.period
+        };
+        
+        if (periodParams.startDate) {
+            params.start_date = periodParams.startDate;
+        }
+        if (periodParams.endDate) {
+            params.end_date = periodParams.endDate;
+        }
+        
+        const url = buildApiUrl('/api/transactions', params);
 
         const response = await fetch(url);
         const data = await response.json();
@@ -1146,7 +1213,20 @@ async function loadTransactions() {
 
 async function loadSummary() {
     try {
-        const url = `${gatewayUrl}/api/stats/overview?telegram_id=${telegramId}`;
+        const periodParams = getPeriodApiParams();
+        const params = {
+            telegram_id: telegramId,
+            period: periodParams.period
+        };
+        
+        if (periodParams.startDate) {
+            params.start_date = periodParams.startDate;
+        }
+        if (periodParams.endDate) {
+            params.end_date = periodParams.endDate;
+        }
+        
+        const url = buildApiUrl('/api/stats/overview', params);
 
         const response = await fetch(url);
         const data = await response.json();
@@ -1186,6 +1266,9 @@ async function handleTransactionSubmit(e) {
         return;
     }
 
+    // Форматируем дату для отправки в API (начало дня в локальном времени)
+    const operationDate = formatDateForApi(date);
+
     const endpoint = currentType === 'expense' ? 
         `${gatewayUrl}/api/transactions/expense` : 
         `${gatewayUrl}/api/transactions/income`;
@@ -1198,7 +1281,7 @@ async function handleTransactionSubmit(e) {
             amount: amountStr,
             category_id: selectedCategoryId,
             description: document.getElementById('transactionComment').value,
-            operation_date: date ? new Date(date).toISOString() : new Date().toISOString()
+            operation_date: operationDate
         })
     });
 
@@ -1268,7 +1351,7 @@ async function handleTransactionEditSubmit(e) {
             amount: amountStr,
             category_id: parseInt(document.getElementById('editTransactionCategory').value),
             description: document.getElementById('editTransactionComment').value,
-            operation_date: new Date(date).toISOString()
+            operation_date: formatDateForApi(date)
         })
     });
 
@@ -1558,7 +1641,7 @@ async function handleTransferEditSubmit(e) {
             amount: amountStr,
             category_id: 0,
             description: document.getElementById('editTransferComment').value,
-            operation_date: new Date(date).toISOString()
+            operation_date: formatDateForApi(date)
         })
     });
 
@@ -1792,6 +1875,16 @@ function formatDateForInput(date) {
     return `${year}-${month}-${day}`;
 }
 
+function formatDateForApi(dateStr) {
+    // Преобразует строку даты YYYY-MM-DD в ISO строку с учетом локального времени
+    if (!dateStr) {
+        return new Date().toISOString();
+    }
+    const [year, month, day] = dateStr.split('-');
+    const localDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), 0, 0, 0, 0);
+    return localDate.toISOString();
+}
+
 function handleDaySelectorSubmit(e) {
     e.preventDefault();
     
@@ -1808,6 +1901,11 @@ function handleDaySelectorSubmit(e) {
     currentDate = new Date(selectedDate);
     updateDateDisplay();
     closeModal('daySelectorModal');
+    
+    // Перезагрузить данные
+    if (currentTab === 'home') {
+        loadHomeData();
+    }
 }
 
 function handleWeekSelectorSubmit(e) {
@@ -1826,6 +1924,11 @@ function handleWeekSelectorSubmit(e) {
     currentDate = new Date(selectedDate);
     updateDateDisplay();
     closeModal('weekSelectorModal');
+    
+    // Перезагрузить данные
+    if (currentTab === 'home') {
+        loadHomeData();
+    }
 }
 
 function handleMonthSelectorSubmit(e) {
@@ -1845,6 +1948,11 @@ function handleMonthSelectorSubmit(e) {
     currentDate = new Date(parseInt(year), parseInt(month) - 1, 1);
     updateDateDisplay();
     closeModal('monthSelectorModal');
+    
+    // Перезагрузить данные
+    if (currentTab === 'home') {
+        loadHomeData();
+    }
 }
 
 function handleYearSelectorSubmit(e) {
@@ -1863,6 +1971,11 @@ function handleYearSelectorSubmit(e) {
     currentDate = new Date(selectedYear, 0, 1);
     updateDateDisplay();
     closeModal('yearSelectorModal');
+    
+    // Перезагрузить данные
+    if (currentTab === 'home') {
+        loadHomeData();
+    }
 }
 
 function openModal(modalId) {
