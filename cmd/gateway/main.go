@@ -11,7 +11,6 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	"github.com/kiribu/financial-tracker/internal/gateway/cache"
 	"github.com/kiribu/financial-tracker/internal/gateway/client"
 	"github.com/kiribu/financial-tracker/internal/gateway/handler"
 	"github.com/kiribu/financial-tracker/internal/pkg/config"
@@ -35,17 +34,8 @@ func main() {
 	}
 	defer clients.Close()
 
-	// Initialize Redis cache
-	redisCache, err := cache.NewCache(cfg.Redis.Addr(), log)
-	if err != nil {
-		log.Warn("Failed to connect to Redis, continuing without cache", zap.Error(err))
-		redisCache = nil
-	} else {
-		defer redisCache.Close()
-	}
-
 	// Initialize handler
-	h := handler.NewHandler(clients, redisCache, log)
+	h := handler.NewHandler(clients, log)
 
 	// Setup router
 	r := chi.NewRouter()

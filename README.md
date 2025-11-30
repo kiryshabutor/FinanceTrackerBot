@@ -23,7 +23,6 @@
 
 - **Язык**: Go 1.22+
 - **База данных**: PostgreSQL 16
-- **Кеш**: Redis 7
 - **Протоколы**: gRPC (межсервисное взаимодействие), REST (API Gateway)
 - **Контейнеризация**: Docker, docker-compose
 
@@ -70,10 +69,6 @@ POSTGRES_USER=postgres
 POSTGRES_PASSWORD=postgres
 POSTGRES_DB=finance_tracker
 
-# Redis
-REDIS_HOST=redis
-REDIS_PORT=6379
-
 # Gateway
 HTTP_PORT=8080
 USER_SERVICE_URL=user-service:50051
@@ -113,10 +108,10 @@ migrate -path migrations -database "postgres://postgres:postgres@localhost:5432/
 
 ### Запуск в режиме разработки
 
-1. Запустите PostgreSQL и Redis через docker-compose:
+1. Запустите PostgreSQL через docker-compose:
 
 ```bash
-docker-compose up -d postgres redis
+docker-compose up -d postgres
 ```
 
 2. Выполните миграции:

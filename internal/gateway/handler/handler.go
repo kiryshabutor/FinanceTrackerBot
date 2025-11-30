@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/kiribu/financial-tracker/internal/gateway/cache"
 	"github.com/kiribu/financial-tracker/internal/gateway/client"
 	pbLedger "github.com/kiribu/financial-tracker/proto/ledger"
 	pbUser "github.com/kiribu/financial-tracker/proto/user"
@@ -20,14 +19,12 @@ import (
 
 type Handler struct {
 	clients *client.Clients
-	cache   *cache.Cache
 	logger  *zap.Logger
 }
 
-func NewHandler(clients *client.Clients, cache *cache.Cache, logger *zap.Logger) *Handler {
+func NewHandler(clients *client.Clients, logger *zap.Logger) *Handler {
 	return &Handler{
 		clients: clients,
-		cache:   cache,
 		logger:  logger,
 	}
 }
@@ -63,19 +60,11 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 func (h *Handler) getUserID(telegramID int64) (int64, error) {
 	ctx := context.Background()
 
-	// Try cache first
-	if userID, found, err := h.cache.GetUserID(ctx, telegramID); err == nil && found {
-		return userID, nil
-	}
-
 	// Get from User Service
 	userID, err := h.clients.GetUserIDByTelegramID(ctx, telegramID)
 	if err != nil {
 		return 0, err
 	}
-
-	// Cache it
-	_ = h.cache.SetUserID(ctx, telegramID, userID)
 
 	return userID, nil
 }
@@ -105,9 +94,6 @@ func (h *Handler) Start(w http.ResponseWriter, r *http.Request) {
 		h.respondError(w, http.StatusInternalServerError, "failed to create user")
 		return
 	}
-
-	// Cache user_id
-	_ = h.cache.SetUserID(ctx, req.TelegramID, resp.UserId)
 
 	// Check if user is new by checking if they have accounts
 	// New users will have only the default account created just now

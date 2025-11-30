@@ -12,12 +12,8 @@ CREATE INDEX IF NOT EXISTS idx_categories_user_id_type ON categories(user_id, ty
 
 -- Insert default global categories
 INSERT INTO categories (user_id, name, type) VALUES
-    (NULL, 'Еда', 'expense'),
     (NULL, 'Транспорт', 'expense'),
-    (NULL, 'Жильё', 'expense'),
-    (NULL, 'Развлечения', 'expense'),
-    (NULL, 'Здоровье', 'expense'),
-    (NULL, 'Одежда', 'expense'),
+    (NULL, 'Продукты', 'expense'),
     (NULL, 'Прочее', 'expense'),
     (NULL, 'Зарплата', 'income'),
     (NULL, 'Подарки', 'income'),

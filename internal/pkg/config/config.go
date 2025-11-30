@@ -9,7 +9,6 @@ import (
 
 type Config struct {
 	Postgres PostgresConfig `yaml:"postgres"`
-	Redis    RedisConfig    `yaml:"redis"`
 	Bot      BotConfig      `yaml:"bot"`
 	Gateway  GatewayConfig  `yaml:"gateway"`
 	Services ServicesConfig `yaml:"services"`
@@ -29,15 +28,6 @@ func (c PostgresConfig) DSN() string {
 		c.User, c.Password, c.Host, c.Port, c.DB, c.SSLMode)
 }
 
-type RedisConfig struct {
-	Host string `env:"REDIS_HOST" env-default:"localhost"`
-	Port string `env:"REDIS_PORT" env-default:"6379"`
-}
-
-func (c RedisConfig) Addr() string {
-	return fmt.Sprintf("%s:%s", c.Host, c.Port)
-}
-
 type BotConfig struct {
 	Token      string `env:"BOT_TOKEN" env-required:"true"`
 	GatewayURL string `env:"GATEWAY_URL" env-default:"http://localhost:8080"`
@@ -45,7 +35,6 @@ type BotConfig struct {
 
 type GatewayConfig struct {
 	HTTPPort string `env:"HTTP_PORT" env-default:"8080"`
-	Redis    RedisConfig
 	Services ServicesConfig
 }
 
@@ -56,7 +45,6 @@ type ServicesConfig struct {
 
 type ServiceConfig struct {
 	Postgres PostgresConfig
-	Redis    RedisConfig
 	GRPCPort string `env:"GRPC_PORT" env-default:"50051"`
 }
 

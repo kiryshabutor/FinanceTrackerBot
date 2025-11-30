@@ -1134,16 +1134,62 @@ async function loadBalance() {
     }
 }
 
+// Функции для работы с последними использованными категориями
+function getLastUsedCategories(type) {
+    const key = `lastUsedCategories_${type}_${telegramId}`;
+    const stored = localStorage.getItem(key);
+    return stored ? JSON.parse(stored) : [];
+}
+
+function saveLastUsedCategory(type, categoryId) {
+    const key = `lastUsedCategories_${type}_${telegramId}`;
+    let lastUsed = getLastUsedCategories(type);
+    
+    // Удаляем категорию, если она уже есть в списке
+    lastUsed = lastUsed.filter(id => id !== categoryId);
+    
+    // Добавляем в начало
+    lastUsed.unshift(categoryId);
+    
+    // Оставляем только последние 10 (чтобы было достаточно для выбора)
+    lastUsed = lastUsed.slice(0, 10);
+    
+    localStorage.setItem(key, JSON.stringify(lastUsed));
+}
+
 async function loadCategories(type) {
     try {
         const response = await fetch(`${gatewayUrl}/api/categories?telegram_id=${telegramId}&type=${type}`);
         const data = await response.json();
         categories = data.categories || [];
 
-        // Display first 7 categories (2 rows of 4, last is "more")
+        // Получаем последние использованные категории
+        const lastUsed = getLastUsedCategories(type);
+        
+        // Создаем мапу категорий для быстрого поиска
+        const categoryMap = new Map(categories.map(cat => [cat.id, cat]));
+        
+        // Получаем последние 3 использованные категории, которые существуют
+        const recentCategories = [];
+        for (const categoryId of lastUsed) {
+            const category = categoryMap.get(categoryId);
+            if (category && recentCategories.length < 3) {
+                recentCategories.push(category);
+            }
+        }
+        
+        // Если использованных категорий меньше 3, добавляем остальные из общего списка
+        if (recentCategories.length < 3) {
+            for (const category of categories) {
+                if (!recentCategories.find(c => c.id === category.id) && recentCategories.length < 3) {
+                    recentCategories.push(category);
+                }
+            }
+        }
+
+        // Display last 3 used categories + "more" button
         const grid = document.getElementById('categoriesGrid');
-        const displayCategories = categories.slice(0, 7);
-        grid.innerHTML = displayCategories.map(cat => `
+        grid.innerHTML = recentCategories.map(cat => `
             <button type="button" class="category-button" data-category-id="${cat.id}" onclick="selectCategory(${cat.id})">
                 <div class="icon">📁</div>
                 <div class="category-name">${cat.name}</div>
@@ -1175,6 +1221,8 @@ async function loadAllCategories() {
 
 function selectCategory(categoryId) {
     selectedCategoryId = categoryId;
+    // Сохраняем выбранную категорию в список последних использованных
+    saveLastUsedCategory(modalTransactionType, categoryId);
     document.querySelectorAll('#categoriesGrid .category-button').forEach(btn => {
         btn.classList.remove('active');
         if (btn.dataset.categoryId === categoryId.toString()) {
@@ -1185,6 +1233,8 @@ function selectCategory(categoryId) {
 
 function selectCategoryFromAll(categoryId) {
     selectedCategoryId = categoryId;
+    // Сохраняем выбранную категорию в список последних использованных
+    saveLastUsedCategory(modalTransactionType, categoryId);
     closeModal('moreCategoriesModal');
     // Update main grid selection
     document.querySelectorAll('#categoriesGrid .category-button').forEach(btn => {
@@ -1193,6 +1243,8 @@ function selectCategoryFromAll(categoryId) {
             btn.classList.add('active');
         }
     });
+    // Обновляем список категорий, чтобы показать новую последнюю использованную
+    loadCategories(modalTransactionType);
 }
 
 async function loadHomeData() {
@@ -1456,6 +1508,10 @@ async function handleTransactionSubmit(e) {
     });
 
     if (result.success) {
+        // Сохраняем категорию в список последних использованных при успешном создании транзакции
+        if (selectedCategoryId) {
+            saveLastUsedCategory(modalTransactionType, selectedCategoryId);
+        }
         showAlert('Транзакция создана!');
         closeModal('transactionModal');
         resetForm('transactionForm');
