@@ -756,6 +756,7 @@ function updateNavigationButtons() {
             nextBtn.classList.remove('hidden');
         }
     } else {
+        
         // Для остальных периодов: если начало следующего периода в будущем - скрываем
         const nextStart = new Date(nextPeriodDates.start);
         nextStart.setHours(0, 0, 0, 0);
