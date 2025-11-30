@@ -10,15 +10,30 @@ CREATE TABLE IF NOT EXISTS categories (
 CREATE INDEX IF NOT EXISTS idx_categories_user_id ON categories(user_id);
 CREATE INDEX IF NOT EXISTS idx_categories_user_id_type ON categories(user_id, type);
 
--- Insert default global categories
-INSERT INTO categories (user_id, name, type) VALUES
-    (NULL, 'Транспорт', 'expense'),
-    (NULL, 'Продукты', 'expense'),
-    (NULL, 'Прочее', 'expense'),
-    (NULL, 'Зарплата', 'income'),
-    (NULL, 'Подарки', 'income'),
-    (NULL, 'Прочее', 'income')
-ON CONFLICT DO NOTHING;
+-- Insert default global categories (only if they don't exist)
+INSERT INTO categories (user_id, name, type)
+SELECT NULL, 'Транспорт', 'expense'
+WHERE NOT EXISTS (SELECT 1 FROM categories WHERE user_id IS NULL AND name = 'Транспорт' AND type = 'expense');
+
+INSERT INTO categories (user_id, name, type)
+SELECT NULL, 'Еда', 'expense'
+WHERE NOT EXISTS (SELECT 1 FROM categories WHERE user_id IS NULL AND name = 'Еда' AND type = 'expense');
+
+INSERT INTO categories (user_id, name, type)
+SELECT NULL, 'Прочее', 'expense'
+WHERE NOT EXISTS (SELECT 1 FROM categories WHERE user_id IS NULL AND name = 'Прочее' AND type = 'expense');
+
+INSERT INTO categories (user_id, name, type)
+SELECT NULL, 'Зарплата', 'income'
+WHERE NOT EXISTS (SELECT 1 FROM categories WHERE user_id IS NULL AND name = 'Зарплата' AND type = 'income');
+
+INSERT INTO categories (user_id, name, type)
+SELECT NULL, 'Подарки', 'income'
+WHERE NOT EXISTS (SELECT 1 FROM categories WHERE user_id IS NULL AND name = 'Подарки' AND type = 'income');
+
+INSERT INTO categories (user_id, name, type)
+SELECT NULL, 'Прочее', 'income'
+WHERE NOT EXISTS (SELECT 1 FROM categories WHERE user_id IS NULL AND name = 'Прочее' AND type = 'income');
 
 
 

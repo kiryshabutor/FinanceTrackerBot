@@ -208,6 +208,19 @@ func (s *Service) CreateCategory(ctx context.Context, userID int64, name, catego
 	if categoryType != "expense" && categoryType != "income" {
 		return nil, fmt.Errorf("invalid category type")
 	}
+	
+	// Check if category with same name and type already exists for this user
+	categories, err := s.repo.ListCategories(ctx, userID, categoryType)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check existing categories: %w", err)
+	}
+	
+	for _, cat := range categories {
+		if cat.UserID.Valid && cat.UserID.Int64 == userID && cat.Name == name {
+			return nil, fmt.Errorf("категория с таким названием уже существует")
+		}
+	}
+	
 	return s.repo.CreateCategory(ctx, userID, name, categoryType)
 }
 
