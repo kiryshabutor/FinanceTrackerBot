@@ -1134,99 +1134,32 @@ async function loadBalance() {
     }
 }
 
-// Функции для работы с последними использованными категориями
-function getLastUsedCategories(type) {
-    const key = `lastUsedCategories_${type}_${telegramId}`;
-    const stored = localStorage.getItem(key);
-    return stored ? JSON.parse(stored) : [];
-}
-
-function saveLastUsedCategory(type, categoryId) {
-    const key = `lastUsedCategories_${type}_${telegramId}`;
-    let lastUsed = getLastUsedCategories(type);
-    
-    // Удаляем категорию, если она уже есть в списке
-    lastUsed = lastUsed.filter(id => id !== categoryId);
-    
-    // Добавляем в начало (последняя использованная будет первой)
-    lastUsed.unshift(categoryId);
-    
-    // Оставляем только последние 10 (чтобы было достаточно для выбора)
-    lastUsed = lastUsed.slice(0, 10);
-    
-    localStorage.setItem(key, JSON.stringify(lastUsed));
-}
-
 async function loadCategories(type) {
     try {
         const response = await fetch(`${gatewayUrl}/api/categories?telegram_id=${telegramId}&type=${type}`);
         const data = await response.json();
         categories = data.categories || [];
 
-        // Получаем последние использованные категории
-        const lastUsed = getLastUsedCategories(type);
-        
-        // Создаем мапу категорий для быстрого поиска
-        const categoryMap = new Map(categories.map(cat => [cat.id, cat]));
-        
-        // Получаем последние 3 использованные категории, которые существуют
-        const recentCategories = [];
-        for (const categoryId of lastUsed) {
-            if (recentCategories.length >= 3) break; // СТРОГО ОГРАНИЧИВАЕМ ДО 3!
-            const category = categoryMap.get(categoryId);
-            if (category) {
-                recentCategories.push(category);
-            }
-        }
-        
-        // Если использованных категорий меньше 3, добавляем остальные из общего списка
-        // НО СТРОГО ОГРАНИЧИВАЕМ ДО 3!
-        if (recentCategories.length < 3) {
-            for (const category of categories) {
-                if (recentCategories.length >= 3) break; // СТРОГО ОСТАНАВЛИВАЕМСЯ НА 3!
-                // Проверяем, что категория еще не добавлена
-                const alreadyAdded = recentCategories.some(c => c.id === category.id);
-                if (!alreadyAdded) {
-                    recentCategories.push(category);
-                }
-            }
-        }
+        // Показываем первые 3 категории + кнопка "Еще"
+        const displayCategories = categories.slice(0, 3);
 
-        // ВАЖНО: Ограничиваем строго до 3 категорий (не больше!) - ДВОЙНАЯ ПРОВЕРКА
-        let displayCategories = recentCategories.slice(0, 3);
-        
-        // ФИНАЛЬНАЯ ПРОВЕРКА: если почему-то больше 3, обрезаем
-        if (displayCategories.length > 3) {
-            displayCategories = displayCategories.slice(0, 3);
-        }
-        
-        // ГАРАНТИРУЕМ: ровно 3 категории, не больше!
-        displayCategories = displayCategories.slice(0, 3);
-
-        // Display ТОЛЬКО 3 последние использованные категории + "more" button (total 4 elements)
         const grid = document.getElementById('categoriesGrid');
         if (!grid) {
             console.error('categoriesGrid element not found');
             return;
         }
         
-        // Создаем HTML только для 3 категорий + кнопка "Еще"
-        const categoriesHTML = displayCategories.slice(0, 3).map(cat => `
+        grid.innerHTML = displayCategories.map(cat => `
             <button type="button" class="category-button" data-category-id="${cat.id}" onclick="selectCategory(${cat.id})">
                 <div class="icon">📁</div>
                 <div class="category-name">${cat.name}</div>
             </button>
-        `).join('');
-        
-        const moreButtonHTML = `
+        `).join('') + `
             <button type="button" class="category-button" onclick="loadAllCategories(); openModal('moreCategoriesModal');">
                 <div class="icon">➕</div>
                 <div class="category-name">Еще</div>
             </button>
         `;
-        
-        // Устанавливаем HTML - строго 3 категории + 1 кнопка = 4 элемента
-        grid.innerHTML = categoriesHTML + moreButtonHTML;
     } catch (error) {
         console.error('Error loading categories:', error);
     }
@@ -1248,37 +1181,24 @@ async function loadAllCategories() {
 
 function selectCategory(categoryId) {
     selectedCategoryId = categoryId;
-    // Сохраняем выбранную категорию в список последних использованных
-    saveLastUsedCategory(modalTransactionType, categoryId);
-    // Обновляем отображение категорий, чтобы показать новую последнюю использованную
-    loadCategories(modalTransactionType);
-    // Выделяем выбранную категорию после обновления
-    setTimeout(() => {
-        document.querySelectorAll('#categoriesGrid .category-button').forEach(btn => {
-            btn.classList.remove('active');
-            if (btn.dataset.categoryId === categoryId.toString()) {
-                btn.classList.add('active');
-            }
-        });
-    }, 100);
+    document.querySelectorAll('#categoriesGrid .category-button').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.dataset.categoryId === categoryId.toString()) {
+            btn.classList.add('active');
+        }
+    });
 }
 
 function selectCategoryFromAll(categoryId) {
     selectedCategoryId = categoryId;
-    // Сохраняем выбранную категорию в список последних использованных
-    saveLastUsedCategory(modalTransactionType, categoryId);
     closeModal('moreCategoriesModal');
-    // Обновляем отображение категорий, чтобы показать новую последнюю использованную
-    loadCategories(modalTransactionType);
-    // Выделяем выбранную категорию после обновления
-    setTimeout(() => {
-        document.querySelectorAll('#categoriesGrid .category-button').forEach(btn => {
-            btn.classList.remove('active');
-            if (btn.dataset.categoryId === categoryId.toString()) {
-                btn.classList.add('active');
-            }
-        });
-    }, 100);
+    // Update main grid selection
+    document.querySelectorAll('#categoriesGrid .category-button').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.dataset.categoryId === categoryId.toString()) {
+            btn.classList.add('active');
+        }
+    });
 }
 
 async function loadHomeData() {
@@ -1542,10 +1462,6 @@ async function handleTransactionSubmit(e) {
     });
 
     if (result.success) {
-        // Сохраняем категорию в список последних использованных при успешном создании транзакции
-        if (selectedCategoryId) {
-            saveLastUsedCategory(modalTransactionType, selectedCategoryId);
-        }
         showAlert('Транзакция создана!');
         closeModal('transactionModal');
         resetForm('transactionForm');
