@@ -21,8 +21,6 @@ const _ = grpc.SupportPackageIsVersion9
 const (
 	UserService_GetOrCreateUser_FullMethodName     = "/user.UserService/GetOrCreateUser"
 	UserService_GetUserByTelegramId_FullMethodName = "/user.UserService/GetUserByTelegramId"
-	UserService_GetUserSettings_FullMethodName     = "/user.UserService/GetUserSettings"
-	UserService_UpdateUserSettings_FullMethodName  = "/user.UserService/UpdateUserSettings"
 )
 
 // UserServiceClient is the client API for UserService service.
@@ -33,8 +31,6 @@ const (
 type UserServiceClient interface {
 	GetOrCreateUser(ctx context.Context, in *GetOrCreateUserRequest, opts ...grpc.CallOption) (*UserResponse, error)
 	GetUserByTelegramId(ctx context.Context, in *GetUserByTelegramIdRequest, opts ...grpc.CallOption) (*UserResponse, error)
-	GetUserSettings(ctx context.Context, in *GetUserSettingsRequest, opts ...grpc.CallOption) (*UserSettingsResponse, error)
-	UpdateUserSettings(ctx context.Context, in *UpdateUserSettingsRequest, opts ...grpc.CallOption) (*UserSettingsResponse, error)
 }
 
 type userServiceClient struct {
@@ -65,26 +61,6 @@ func (c *userServiceClient) GetUserByTelegramId(ctx context.Context, in *GetUser
 	return out, nil
 }
 
-func (c *userServiceClient) GetUserSettings(ctx context.Context, in *GetUserSettingsRequest, opts ...grpc.CallOption) (*UserSettingsResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(UserSettingsResponse)
-	err := c.cc.Invoke(ctx, UserService_GetUserSettings_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *userServiceClient) UpdateUserSettings(ctx context.Context, in *UpdateUserSettingsRequest, opts ...grpc.CallOption) (*UserSettingsResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(UserSettingsResponse)
-	err := c.cc.Invoke(ctx, UserService_UpdateUserSettings_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 // UserServiceServer is the server API for UserService service.
 // All implementations must embed UnimplementedUserServiceServer
 // for forward compatibility.
@@ -93,8 +69,6 @@ func (c *userServiceClient) UpdateUserSettings(ctx context.Context, in *UpdateUs
 type UserServiceServer interface {
 	GetOrCreateUser(context.Context, *GetOrCreateUserRequest) (*UserResponse, error)
 	GetUserByTelegramId(context.Context, *GetUserByTelegramIdRequest) (*UserResponse, error)
-	GetUserSettings(context.Context, *GetUserSettingsRequest) (*UserSettingsResponse, error)
-	UpdateUserSettings(context.Context, *UpdateUserSettingsRequest) (*UserSettingsResponse, error)
 	mustEmbedUnimplementedUserServiceServer()
 }
 
@@ -110,12 +84,6 @@ func (UnimplementedUserServiceServer) GetOrCreateUser(context.Context, *GetOrCre
 }
 func (UnimplementedUserServiceServer) GetUserByTelegramId(context.Context, *GetUserByTelegramIdRequest) (*UserResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetUserByTelegramId not implemented")
-}
-func (UnimplementedUserServiceServer) GetUserSettings(context.Context, *GetUserSettingsRequest) (*UserSettingsResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetUserSettings not implemented")
-}
-func (UnimplementedUserServiceServer) UpdateUserSettings(context.Context, *UpdateUserSettingsRequest) (*UserSettingsResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method UpdateUserSettings not implemented")
 }
 func (UnimplementedUserServiceServer) mustEmbedUnimplementedUserServiceServer() {}
 func (UnimplementedUserServiceServer) testEmbeddedByValue()                     {}
@@ -174,42 +142,6 @@ func _UserService_GetUserByTelegramId_Handler(srv interface{}, ctx context.Conte
 	return interceptor(ctx, in, info, handler)
 }
 
-func _UserService_GetUserSettings_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetUserSettingsRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(UserServiceServer).GetUserSettings(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: UserService_GetUserSettings_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(UserServiceServer).GetUserSettings(ctx, req.(*GetUserSettingsRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _UserService_UpdateUserSettings_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(UpdateUserSettingsRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(UserServiceServer).UpdateUserSettings(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: UserService_UpdateUserSettings_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(UserServiceServer).UpdateUserSettings(ctx, req.(*UpdateUserSettingsRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 // UserService_ServiceDesc is the grpc.ServiceDesc for UserService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -224,14 +156,6 @@ var UserService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetUserByTelegramId",
 			Handler:    _UserService_GetUserByTelegramId_Handler,
-		},
-		{
-			MethodName: "GetUserSettings",
-			Handler:    _UserService_GetUserSettings_Handler,
-		},
-		{
-			MethodName: "UpdateUserSettings",
-			Handler:    _UserService_UpdateUserSettings_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
